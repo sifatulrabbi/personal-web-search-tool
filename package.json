@@ -3,7 +3,9 @@
     "version": "0.0.0",
     "private": true,
     "workspaces": {
-        "packages": ["packages/*"],
+        "packages": [
+            "packages/*"
+        ],
         "catalog": {
             "playwright-core": "^1.49.0",
             "turndown": "^7.1.2",
