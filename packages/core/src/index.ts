@@ -28,7 +28,7 @@ import {
     createPageContentExtractor,
     type PageContentExtractor,
 } from "./content/extractor";
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 // ---------------------------------------------------------------------------
 // Re-exports

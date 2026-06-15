@@ -8,7 +8,7 @@
  * concentrated here for easy updates.
  */
 
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 // ---------------------------------------------------------------------------
 // Types

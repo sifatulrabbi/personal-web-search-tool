@@ -8,7 +8,7 @@
  * No classes — factory function returning a plain record of methods.
  */
 
-import { chromium, type BrowserContext, type Page } from "playwright";
+import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { DEFAULT_CHROME_BINARY, DEFAULT_USER_DATA_DIR } from "./profile";
 
 // ---------------------------------------------------------------------------

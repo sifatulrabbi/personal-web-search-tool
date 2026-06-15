@@ -7,7 +7,7 @@
 
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 // ---------------------------------------------------------------------------
 // Constants

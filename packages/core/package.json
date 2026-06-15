@@ -1,0 +1,41 @@
+{
+    "name": "@sifatul-web-search-tool/core",
+    "version": "0.1.0",
+    "description": "Programmatic Google search using your own Chrome profile on macOS",
+    "type": "module",
+    "license": "MIT",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "test": "bun test",
+        "test:watch": "bun test --watch",
+        "test:unit": "bun test tests/unit.test.ts",
+        "test:integration": "GOOGLE_SEARCH_TEST=1 bun test tests/integration.test.ts",
+        "typecheck": "bun x tsc --noEmit",
+        "typecheck:watch": "bun x tsc --noEmit --watch",
+        "build": "bun x tsc -p src/tsconfig.build.json",
+        "build:watch": "bun x tsc -p src/tsconfig.build.json --watch",
+        "prepack": "bun run build && bun run typecheck",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "dependencies": {
+        "playwright-core": "catalog:",
+        "turndown": "catalog:",
+        "@mozilla/readability": "catalog:"
+    },
+    "devDependencies": {
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
+        "@types/turndown": "catalog:",
+        "bun-types": "^1.3.14",
+        "prettier": "catalog:"
+    }
+}
