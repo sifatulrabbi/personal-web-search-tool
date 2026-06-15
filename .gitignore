@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Browser cache
+/Users/sifatul/Library/Application Support/Google/Chrome/Cache/
+.cache/
+.puppeteer_cache/
+
+# Playwright browser downloads
+ms-playwright/
+playwright-report/
+test-results/
+traces/
+
+# Bun
+bunfig.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+tmp/
+*.tmp
