@@ -33,23 +33,23 @@ Object.defineProperty(navigator, 'webdriver', {
 // ---------------------------------------------------------------------------
 
 export interface BrowserManagerDeps {
-    /** Path to the Chrome binary on macOS. */
-    chromeBinary?: string;
-    /** Chrome user-data-dir (profile directory). */
-    userDataDir?: string;
-    /** Set to `true` to run Chrome in headless mode (CI / no-display environments). */
-    headless?: boolean;
+  /** Path to the Chrome binary on macOS. */
+  chromeBinary?: string;
+  /** Chrome user-data-dir (profile directory). */
+  userDataDir?: string;
+  /** Set to `true` to run Chrome in headless mode (CI / no-display environments). */
+  headless?: boolean;
 }
 
 export type BrowserManager = {
-    /** Start Chrome and return the persistent context. Safe to call twice. */
-    start: () => Promise<BrowserContext>;
-    /** Get (or create) a page within the browser context. */
-    newPage: () => Promise<Page>;
-    /** Navigate to a URL and wait for DOM content to be ready. */
-    goto: (url: string, timeoutMs?: number) => Promise<void>;
-    /** Close the browser context. */
-    close: () => Promise<void>;
+  /** Start Chrome and return the persistent context. Safe to call twice. */
+  start: () => Promise<BrowserContext>;
+  /** Get (or create) a page within the browser context. */
+  newPage: () => Promise<Page>;
+  /** Navigate to a URL and wait for DOM content to be ready. */
+  goto: (url: string, timeoutMs?: number) => Promise<void>;
+  /** Close the browser context. */
+  close: () => Promise<void>;
 };
 
 // ---------------------------------------------------------------------------
@@ -62,11 +62,11 @@ export type BrowserManager = {
 // cookies, history, and login state are what actually avoid CAPTCHAs.
 
 const DEFAULT_LAUNCH_ARGS = [
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-popup-blocking",
-    "--disable-blink-features=AutomationControlled",
-    "--no-sandbox",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--disable-popup-blocking",
+  "--disable-blink-features=AutomationControlled",
+  "--no-sandbox",
 ];
 
 // ---------------------------------------------------------------------------
@@ -74,78 +74,76 @@ const DEFAULT_LAUNCH_ARGS = [
 // ---------------------------------------------------------------------------
 
 export function createBrowserManager(
-    deps: BrowserManagerDeps = {},
+  deps: BrowserManagerDeps = {},
 ): BrowserManager {
-    const chromeBinary = deps.chromeBinary ?? DEFAULT_CHROME_BINARY;
-    const userDataDir = deps.userDataDir ?? DEFAULT_USER_DATA_DIR;
-    const headless = deps.headless ?? false;
+  const chromeBinary = deps.chromeBinary ?? DEFAULT_CHROME_BINARY;
+  const userDataDir = deps.userDataDir ?? DEFAULT_USER_DATA_DIR;
+  const headless = deps.headless ?? false;
 
-    let context: BrowserContext | null = null;
+  let context: BrowserContext | null = null;
 
-    // `newPage` is captured in a closure so that `goto` and any other
-    // method that needs a page never depends on `this` — callers may safely
-    // destructure individual methods out of this object without breaking.
-    async function getPage(): Promise<Page> {
-        if (!context) throw new Error("BrowserManager: call start() first");
-        const pages = context.pages() ?? [];
-        return pages.length > 0 ? pages[0] : context.newPage();
-    }
+  // `newPage` is captured in a closure so that `goto` and any other
+  // method that needs a page never depends on `this` — callers may safely
+  // destructure individual methods out of this object without breaking.
+  async function getPage(): Promise<Page> {
+    if (!context) throw new Error("BrowserManager: call start() first");
+    const pages = context.pages() ?? [];
+    return pages.length > 0 ? pages[0] : context.newPage();
+  }
 
-    return {
-        async start(): Promise<BrowserContext> {
-            if (context) return context;
+  return {
+    async start(): Promise<BrowserContext> {
+      if (context) return context;
 
-            context = await chromium.launchPersistentContext(userDataDir, {
-                channel: "chrome",
-                headless,
-                executablePath: chromeBinary,
-                viewport: { width: 1280, height: 720 },
-                args: DEFAULT_LAUNCH_ARGS,
-            });
+      context = await chromium.launchPersistentContext(userDataDir, {
+        channel: "chrome",
+        headless,
+        executablePath: chromeBinary,
+        viewport: { width: 1280, height: 720 },
+        args: DEFAULT_LAUNCH_ARGS,
+      });
 
-            // Patch navigator.webdriver on every new page before it navigates.
-            context.on("page", (page: Page) => {
-                void page.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
-            });
+      // Patch navigator.webdriver on every new page before it navigates.
+      context.on("page", (page: Page) => {
+        void page.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
+      });
 
-            // Also patch any pages that already exist (e.g. a blank startup tab).
-            for (const existingPage of context.pages()) {
-                void existingPage
-                    .addInitScript(STEALTH_INIT_SCRIPT)
-                    .catch(() => {});
-            }
+      // Also patch any pages that already exist (e.g. a blank startup tab).
+      for (const existingPage of context.pages()) {
+        void existingPage.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
+      }
 
-            return context;
-        },
+      return context;
+    },
 
-        async newPage(): Promise<Page> {
-            return getPage();
-        },
+    async newPage(): Promise<Page> {
+      return getPage();
+    },
 
-        async goto(url: string, timeoutMs = 15_000): Promise<void> {
-            const page = await getPage();
-            await page.goto(url, {
-                waitUntil: "domcontentloaded",
-                timeout: timeoutMs,
-            });
-        },
+    async goto(url: string, timeoutMs = 15_000): Promise<void> {
+      const page = await getPage();
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout: timeoutMs,
+      });
+    },
 
-        async close(): Promise<void> {
-            if (context) {
-                try {
-                    await context.close();
-                } catch (e) {
-                    const msg = (e as Error)?.message ?? "";
-                    // "Target closed" is expected when Chrome has already exited.
-                    if (!msg.includes("Target closed")) {
-                        console.error(
-                            "[google-search-core] error closing browser context:",
-                            e,
-                        );
-                    }
-                }
-                context = null;
-            }
-        },
-    };
+    async close(): Promise<void> {
+      if (context) {
+        try {
+          await context.close();
+        } catch (e) {
+          const msg = (e as Error)?.message ?? "";
+          // "Target closed" is expected when Chrome has already exited.
+          if (!msg.includes("Target closed")) {
+            console.error(
+              "[google-search-core] error closing browser context:",
+              e,
+            );
+          }
+        }
+        context = null;
+      }
+    },
+  };
 }

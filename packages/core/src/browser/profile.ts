@@ -12,9 +12,9 @@
  */
 
 const DEFAULT_CHROME_BINARY =
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 /** Default profile subdirectory inside the Chrome data root. */
 const DEFAULT_USER_DATA_DIR =
-    "/Users/sifatul/Library/Application Support/Google/Chrome/Default";
+  "/Users/sifatul/Library/Application Support/Google/Chrome/Default";
 
 export { DEFAULT_CHROME_BINARY, DEFAULT_USER_DATA_DIR };

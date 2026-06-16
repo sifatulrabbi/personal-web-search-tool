@@ -21,14 +21,14 @@
 
 import { readFileSync } from "node:fs";
 import {
-    init,
-    search,
-    searchWithContent,
-    close,
+  init,
+  search,
+  searchWithContent,
+  close,
 } from "@sifatul-web-search-tool/core";
 import type {
-    SearchResult,
-    SearchResultWithContent,
+  SearchResult,
+  SearchResultWithContent,
 } from "@sifatul-web-search-tool/core";
 
 // ---------------------------------------------------------------------------
@@ -38,12 +38,12 @@ import type {
 const isTTY = process.stdout.isTTY;
 
 const C = {
-    dim: isTTY ? "\u001b[2m" : "",
-    bold: isTTY ? "\u001b[1m" : "",
-    cyan: isTTY ? "\u001b[36m" : "",
-    green: isTTY ? "\u001b[32m" : "",
-    red: isTTY ? "\u001b[31m" : "",
-    reset: isTTY ? "\u001b[0m" : "",
+  dim: isTTY ? "\u001b[2m" : "",
+  bold: isTTY ? "\u001b[1m" : "",
+  cyan: isTTY ? "\u001b[36m" : "",
+  green: isTTY ? "\u001b[32m" : "",
+  red: isTTY ? "\u001b[31m" : "",
+  reset: isTTY ? "\u001b[0m" : "",
 };
 
 // ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ const C = {
 // ---------------------------------------------------------------------------
 
 const CLI_PKG = JSON.parse(
-    readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
+  readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
 ) as { name: string; version: string };
 const CLI_VERSION: string = CLI_PKG.version;
 
@@ -61,25 +61,25 @@ const CLI_VERSION: string = CLI_PKG.version;
 
 /** Flags recognised by the CLI (without the leading `--`). */
 const KNOWN_FLAGS = new Set([
-    "json",
-    "content",
-    "c",
-    "max-results",
-    "n",
-    "headless",
-    "profile",
-    "help",
-    "h",
-    "version",
+  "json",
+  "content",
+  "c",
+  "max-results",
+  "n",
+  "headless",
+  "profile",
+  "help",
+  "h",
+  "version",
 ]);
 
 /** Shape of parsed CLI options. */
 export interface CliOptions {
-    json: boolean;
-    content: boolean;
-    maxResults: number;
-    headless: boolean;
-    profile: string | undefined;
+  json: boolean;
+  content: boolean;
+  maxResults: number;
+  headless: boolean;
+  profile: string | undefined;
 }
 
 /**
@@ -92,88 +92,87 @@ export interface CliOptions {
  * Flags with values consume the next argv entry (`--max-results 5`).
  */
 export function parseArgs(argv: string[]): {
-    query: string;
-    options: CliOptions;
-    signal: "help" | "version" | null;
+  query: string;
+  options: CliOptions;
+  signal: "help" | "version" | null;
 } {
-    const args = argv.slice(2);
-    const options: CliOptions = {
-        json: false,
-        content: false,
-        maxResults: 10,
-        headless: false,
-        profile: undefined,
-    };
+  const args = argv.slice(2);
+  const options: CliOptions = {
+    json: false,
+    content: false,
+    maxResults: 10,
+    headless: false,
+    profile: undefined,
+  };
 
-    const queryParts: string[] = [];
-    let i = 0;
-    let signal: "help" | "version" | null = null;
+  const queryParts: string[] = [];
+  let i = 0;
+  let signal: "help" | "version" | null = null;
 
-    while (i < args.length) {
-        const arg = args[i];
+  while (i < args.length) {
+    const arg = args[i];
 
-        if (arg === "--json") {
-            options.json = true;
-            i++;
-            continue;
-        }
-
-        if (arg === "--content" || arg === "-c") {
-            options.content = true;
-            i++;
-            continue;
-        }
-
-        if (arg === "--max-results" || arg === "-n") {
-            const raw = args[i + 1];
-            const parsed = Number(raw);
-            options.maxResults =
-                Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
-            i += 2;
-            continue;
-        }
-
-        if (arg === "--headless") {
-            options.headless = true;
-            i++;
-            continue;
-        }
-
-        if (arg === "--profile") {
-            // Guard against a missing value or a value that is itself a flag.
-            const next = args[i + 1];
-            if (!next || next.startsWith("--") || KNOWN_FLAGS.has(next)) {
-                throw new Error(
-                    "--profile requires a directory path (got: " +
-                        JSON.stringify(next ?? "nothing") +
-                        ")",
-                );
-            }
-            options.profile = next;
-            i += 2;
-            continue;
-        }
-
-        if (arg === "--help" || arg === "-h") {
-            signal = "help";
-            i++;
-            continue;
-        }
-
-        if (arg === "--version") {
-            signal = "version";
-            i++;
-            continue;
-        }
-
-        // Everything that is not a `--flag` is part of the query.
-        if (!arg.startsWith("--") && !KNOWN_FLAGS.has(arg)) {
-            queryParts.push(arg);
-        }
-        i++;
+    if (arg === "--json") {
+      options.json = true;
+      i++;
+      continue;
     }
 
-    return { query: queryParts.join(" "), options, signal };
+    if (arg === "--content" || arg === "-c") {
+      options.content = true;
+      i++;
+      continue;
+    }
+
+    if (arg === "--max-results" || arg === "-n") {
+      const raw = args[i + 1];
+      const parsed = Number(raw);
+      options.maxResults = Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+      i += 2;
+      continue;
+    }
+
+    if (arg === "--headless") {
+      options.headless = true;
+      i++;
+      continue;
+    }
+
+    if (arg === "--profile") {
+      // Guard against a missing value or a value that is itself a flag.
+      const next = args[i + 1];
+      if (!next || next.startsWith("--") || KNOWN_FLAGS.has(next)) {
+        throw new Error(
+          "--profile requires a directory path (got: " +
+            JSON.stringify(next ?? "nothing") +
+            ")",
+        );
+      }
+      options.profile = next;
+      i += 2;
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      signal = "help";
+      i++;
+      continue;
+    }
+
+    if (arg === "--version") {
+      signal = "version";
+      i++;
+      continue;
+    }
+
+    // Everything that is not a `--flag` is part of the query.
+    if (!arg.startsWith("--") && !KNOWN_FLAGS.has(arg)) {
+      queryParts.push(arg);
+    }
+    i++;
+  }
+
+  return { query: queryParts.join(" "), options, signal };
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +180,7 @@ export function parseArgs(argv: string[]): {
 // ---------------------------------------------------------------------------
 
 function printHelp(): void {
-    console.log(`web-search — Google search from your terminal
+  console.log(`web-search — Google search from your terminal
 
 Usage:
   web-search [options] <query>
@@ -208,36 +207,36 @@ Examples:
 
 /** Print a single `SearchResult` line for terminal output. */
 function printResultTerminal(result: SearchResult): void {
-    const title = result.title.replace(/\s+/g, " ").slice(0, 80);
-    const urlDisplay = result.displayUrl ?? result.url;
-    const snippet = result.snippet.replace(/\s+/g, " ").slice(0, 160);
+  const title = result.title.replace(/\s+/g, " ").slice(0, 80);
+  const urlDisplay = result.displayUrl ?? result.url;
+  const snippet = result.snippet.replace(/\s+/g, " ").slice(0, 160);
 
-    console.log();
-    console.log(
-        `${C.green}${result.rank}.${C.reset} ${C.bold}${title}${C.reset}`,
-    );
-    console.log(`   ${C.cyan}${urlDisplay}${C.reset}`);
-    if (snippet.length > 0) {
-        console.log(`   ${C.dim}${snippet}${C.reset}`);
-    }
+  console.log();
+  console.log(
+    `${C.green}${result.rank}.${C.reset} ${C.bold}${title}${C.reset}`,
+  );
+  console.log(`   ${C.cyan}${urlDisplay}${C.reset}`);
+  if (snippet.length > 0) {
+    console.log(`   ${C.dim}${snippet}${C.reset}`);
+  }
 }
 
 /** Print results in human-readable terminal format. */
 function printTerminal(results: SearchResult[]): void {
-    if (results.length === 0) {
-        console.log("No results found.");
-        return;
-    }
+  if (results.length === 0) {
+    console.log("No results found.");
+    return;
+  }
 
-    for (const result of results) {
-        printResultTerminal(result);
-    }
-    console.log();
+  for (const result of results) {
+    printResultTerminal(result);
+  }
+  console.log();
 }
 
 /** Print results as a JSON array on stdout. */
 function printJson(results: SearchResult[]): void {
-    console.log(JSON.stringify(results, null, 2));
+  console.log(JSON.stringify(results, null, 2));
 }
 
 /**
@@ -245,23 +244,23 @@ function printJson(results: SearchResult[]): void {
  * Markdown content appended under a separator.
  */
 function printContentTerminal(results: SearchResultWithContent[]): void {
-    for (const result of results) {
-        printResultTerminal(result);
+  for (const result of results) {
+    printResultTerminal(result);
 
-        if (result.content.length > 0) {
-            console.log(`\n${C.dim}${"=".repeat(60)}${C.reset}`);
-            console.log(`${C.dim}${result.content}${C.reset}`);
-            console.log(`${C.dim}${"=".repeat(60)}${C.reset}`);
-        } else {
-            console.log(`\n${C.dim}(no extractable content)${C.reset}`);
-        }
+    if (result.content.length > 0) {
+      console.log(`\n${C.dim}${"=".repeat(60)}${C.reset}`);
+      console.log(`${C.dim}${result.content}${C.reset}`);
+      console.log(`${C.dim}${"=".repeat(60)}${C.reset}`);
+    } else {
+      console.log(`\n${C.dim}(no extractable content)${C.reset}`);
     }
-    console.log();
+  }
+  console.log();
 }
 
 /** Print `SearchResultWithContent` as JSON. */
 function printContentJson(results: SearchResultWithContent[]): void {
-    console.log(JSON.stringify(results, null, 2));
+  console.log(JSON.stringify(results, null, 2));
 }
 
 // ---------------------------------------------------------------------------
@@ -276,74 +275,74 @@ function printContentJson(results: SearchResultWithContent[]): void {
  * those paths never trigger a browser lifecycle.
  */
 async function run(
-    query: string,
-    options: CliOptions,
-    signal: "help" | "version" | null,
+  query: string,
+  options: CliOptions,
+  signal: "help" | "version" | null,
 ): Promise<void> {
-    // Handle informational signals before any browser work.
-    if (signal === "help") {
-        printHelp();
-        return;
-    }
-    if (signal === "version") {
-        console.log(CLI_VERSION);
-        return;
+  // Handle informational signals before any browser work.
+  if (signal === "help") {
+    printHelp();
+    return;
+  }
+  if (signal === "version") {
+    console.log(CLI_VERSION);
+    return;
+  }
+
+  try {
+    // Guard before any browser work — throw so `finally → close()` always fires.
+    if (!query.trim()) {
+      throw new Error("No query provided. Usage: web-search <query>");
     }
 
-    try {
-        // Guard before any browser work — throw so `finally → close()` always fires.
-        if (!query.trim()) {
-            throw new Error("No query provided. Usage: web-search <query>");
-        }
+    await init(
+      options.profile
+        ? { userDataDir: options.profile, headless: options.headless }
+        : { headless: options.headless },
+    );
 
-        await init(
-            options.profile
-                ? { userDataDir: options.profile, headless: options.headless }
-                : { headless: options.headless },
+    if (options.content) {
+      const { results } = await searchWithContent(query, {
+        maxResults: options.maxResults,
+      });
+
+      if (options.json) {
+        printContentJson(results);
+      } else {
+        console.log(
+          `${C.green}✓${C.reset} Found ${results.length} result${
+            results.length === 1 ? "" : "s"
+          } for "${query}"\n`,
         );
-
-        if (options.content) {
-            const { results } = await searchWithContent(query, {
-                maxResults: options.maxResults,
-            });
-
-            if (options.json) {
-                printContentJson(results);
-            } else {
-                console.log(
-                    `${C.green}✓${C.reset} Found ${results.length} result${
-                        results.length === 1 ? "" : "s"
-                    } for "${query}"\n`,
-                );
-                printContentTerminal(results);
-            }
-            return;
-        }
-
-        const { results } = await search(query, {
-            maxResults: options.maxResults,
-        });
-
-        if (options.json) {
-            printJson(results);
-        } else {
-            console.log(
-                `${C.green}✓${C.reset} Found ${results.length} result${
-                    results.length === 1 ? "" : "s"
-                } for "${query}"\n`,
-            );
-            printTerminal(results);
-        }
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`${C.red}Error:${C.reset} ${message}`);
-        process.exitCode = 1;
-    } finally {
-        await close().catch((err) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`${C.red}Cleanup error:${C.reset} ${msg}`);
-        });
+        printContentTerminal(results);
+      }
+      return;
     }
+
+    const { results } = await search(query, {
+      maxResults: options.maxResults,
+    });
+
+    if (options.json) {
+      printJson(results);
+    } else {
+      console.log(
+        `${C.green}✓${C.reset} Found ${results.length} result${
+          results.length === 1 ? "" : "s"
+        } for "${query}"\n`,
+      );
+      printTerminal(results);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`${C.red}Error:${C.reset} ${message}`);
+    process.exitCode = 1;
+  } finally {
+    await close().catch((err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`${C.red}Cleanup error:${C.reset} ${msg}`);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -351,18 +350,18 @@ async function run(
 // ---------------------------------------------------------------------------
 
 if (import.meta.main) {
-    const { query, options, signal } = parseArgs(process.argv);
+  const { query, options, signal } = parseArgs(process.argv);
 
-    // Handle informational signals (help/version) at the top level so we don't
-    // attempt `await run()` when no browser work is needed.
-    if (signal === "help") {
-        printHelp();
-        process.exit(0);
-    }
-    if (signal === "version") {
-        console.log(CLI_VERSION);
-        process.exit(0);
-    }
+  // Handle informational signals (help/version) at the top level so we don't
+  // attempt `await run()` when no browser work is needed.
+  if (signal === "help") {
+    printHelp();
+    process.exit(0);
+  }
+  if (signal === "version") {
+    console.log(CLI_VERSION);
+    process.exit(0);
+  }
 
-    await run(query, options, signal);
+  await run(query, options, signal);
 }

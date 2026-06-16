@@ -15,16 +15,16 @@ import type { Page } from "playwright-core";
 // ---------------------------------------------------------------------------
 
 export interface SearchResult {
-    /** 1-based rank among organic results on the page. */
-    rank: number;
-    /** Clickable title of the result. */
-    title: string;
-    /** Resolved URL from the anchor's `href`, or `undefined` if absent. */
-    url: string;
-    /** Plain-text description / snippet shown below the title. */
-    snippet: string;
-    /** Human-readable domain shown above the title (optional). */
-    displayUrl?: string;
+  /** 1-based rank among organic results on the page. */
+  rank: number;
+  /** Clickable title of the result. */
+  title: string;
+  /** Resolved URL from the anchor's `href`, or `undefined` if absent. */
+  url: string;
+  /** Plain-text description / snippet shown below the title. */
+  snippet: string;
+  /** Human-readable domain shown above the title (optional). */
+  displayUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,23 +41,23 @@ export interface SearchResult {
 //   Display URL — .V9tjod (new layout), .TbwUpd (legacy)
 
 const SELECTORS = {
-    /** Top-level results container injected by Google's server-side renderer. */
-    resultsContainer: "#search",
-    /**
-     * Per-result wrapper in the current Google SERP layout.
-     * Falls back to the legacy `.g` class for older layouts.
-     */
-    resultBlock: "#search .MjjYud",
-    resultBlockFallback: "#search .g",
-    title: "h3",
-    anchor: "a[href]",
-    linkContainer: ".yuRUbf",
-    /** Snippet description — current layout class names. */
-    snippet: ".w8qArf, .ITZIwc",
-    /** Legacy snippet class names and data-attribute fallbacks. */
-    snippetFallback: ".VwiC3b, div[data-sncf], div[data-sncf='1']",
-    /** Display URL — current layout, then legacy. */
-    displayUrl: ".V9tjod, .TbwUpd",
+  /** Top-level results container injected by Google's server-side renderer. */
+  resultsContainer: "#search",
+  /**
+   * Per-result wrapper in the current Google SERP layout.
+   * Falls back to the legacy `.g` class for older layouts.
+   */
+  resultBlock: "#search .MjjYud",
+  resultBlockFallback: "#search .g",
+  title: "h3",
+  anchor: "a[href]",
+  linkContainer: ".yuRUbf",
+  /** Snippet description — current layout class names. */
+  snippet: ".w8qArf, .ITZIwc",
+  /** Legacy snippet class names and data-attribute fallbacks. */
+  snippetFallback: ".VwiC3b, div[data-sncf], div[data-sncf='1']",
+  /** Display URL — current layout, then legacy. */
+  displayUrl: ".V9tjod, .TbwUpd",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -74,19 +74,19 @@ const SELECTORS = {
  *     needing to know the exact class name.
  */
 function extractSnippet(block: Element, titleText: string): string {
-    // Try specific description selectors first.
-    const specific =
-        block.querySelector(SELECTORS.snippet) ??
-        block.querySelector(SELECTORS.snippetFallback);
+  // Try specific description selectors first.
+  const specific =
+    block.querySelector(SELECTORS.snippet) ??
+    block.querySelector(SELECTORS.snippetFallback);
 
-    if (specific?.textContent?.trim()) {
-        return specific.textContent.trim();
-    }
+  if (specific?.textContent?.trim()) {
+    return specific.textContent.trim();
+  }
 
-    // Fallback: block innerText minus the title.
-    const raw = (block as HTMLElement).innerText?.trim() ?? "";
-    const withoutTitle = titleText ? raw.replace(titleText, "").trim() : raw;
-    return withoutTitle.slice(0, 300);
+  // Fallback: block innerText minus the title.
+  const raw = (block as HTMLElement).innerText?.trim() ?? "";
+  const withoutTitle = titleText ? raw.replace(titleText, "").trim() : raw;
+  return withoutTitle.slice(0, 300);
 }
 
 // ---------------------------------------------------------------------------
@@ -104,67 +104,63 @@ function extractSnippet(block: Element, titleText: string): string {
  * @throws Error if the results container does not appear within `timeoutMs`
  */
 export async function extractSearchResults(
-    page: Page,
-    timeoutMs = 10_000,
+  page: Page,
+  timeoutMs = 10_000,
 ): Promise<SearchResult[]> {
-    await page.waitForSelector(SELECTORS.resultsContainer, {
-        timeout: timeoutMs,
-    });
+  await page.waitForSelector(SELECTORS.resultsContainer, {
+    timeout: timeoutMs,
+  });
 
-    // Try the current layout selector first (.MjjYud), then fall back to
-    // the legacy .g class if the page uses an older SERP structure.
-    const resultSelector = (await page.$(SELECTORS.resultBlock))
-        ? SELECTORS.resultBlock
-        : SELECTORS.resultBlockFallback;
+  // Try the current layout selector first (.MjjYud), then fall back to
+  // the legacy .g class if the page uses an older SERP structure.
+  const resultSelector = (await page.$(SELECTORS.resultBlock))
+    ? SELECTORS.resultBlock
+    : SELECTORS.resultBlockFallback;
 
-    const results = await page.$$eval(resultSelector, (elements) => {
-        // Only keep blocks that look like an organic result (have h3 + anchor)
-        const organic = elements.filter(
-            (el) => el.querySelector("h3") && el.querySelector("a[href]"),
-        );
+  const results = await page.$$eval(resultSelector, (elements) => {
+    // Only keep blocks that look like an organic result (have h3 + anchor)
+    const organic = elements.filter(
+      (el) => el.querySelector("h3") && el.querySelector("a[href]"),
+    );
 
-        return organic
-            .map((el, index) => {
-                const titleEl = el.querySelector("h3");
-                const anchor = el.querySelector(
-                    "a[href]",
-                ) as HTMLAnchorElement | null;
-                const displayUrlEl = el.querySelector(".V9tjod, .TbwUpd");
+    return organic
+      .map((el, index) => {
+        const titleEl = el.querySelector("h3");
+        const anchor = el.querySelector("a[href]") as HTMLAnchorElement | null;
+        const displayUrlEl = el.querySelector(".V9tjod, .TbwUpd");
 
-                const href = anchor?.href?.trim();
-                if (!href) return null;
+        const href = anchor?.href?.trim();
+        if (!href) return null;
 
-                if (!titleEl?.textContent) return null;
+        if (!titleEl?.textContent) return null;
 
-                const titleText = titleEl.textContent.trim();
+        const titleText = titleEl.textContent.trim();
 
-                return {
-                    rank: index + 1,
-                    title: titleText,
-                    url: href,
-                    snippet: (() => {
-                        // Inline snippet extraction mirrors extractSnippet() so
-                        // the logic is available inside $$eval without passing
-                        // function references across the serialisation boundary.
-                        const specific =
-                            el.querySelector(".w8qArf, .ITZIwc, .VwiC3b") ??
-                            el.querySelector(
-                                "div[data-sncf], div[data-sncf='1']",
-                            );
-                        if (specific?.textContent?.trim()) {
-                            return specific.textContent.trim();
-                        }
-                        const raw = (el as HTMLElement).innerText?.trim() ?? "";
-                        const withoutTitle = titleText
-                            ? raw.replace(titleText, "").trim()
-                            : raw;
-                        return withoutTitle.slice(0, 300);
-                    })(),
-                    displayUrl: displayUrlEl?.textContent ?? undefined,
-                };
-            })
-            .filter((r): r is NonNullable<typeof r> => r !== null);
-    });
+        return {
+          rank: index + 1,
+          title: titleText,
+          url: href,
+          snippet: (() => {
+            // Inline snippet extraction mirrors extractSnippet() so
+            // the logic is available inside $$eval without passing
+            // function references across the serialisation boundary.
+            const specific =
+              el.querySelector(".w8qArf, .ITZIwc, .VwiC3b") ??
+              el.querySelector("div[data-sncf], div[data-sncf='1']");
+            if (specific?.textContent?.trim()) {
+              return specific.textContent.trim();
+            }
+            const raw = (el as HTMLElement).innerText?.trim() ?? "";
+            const withoutTitle = titleText
+              ? raw.replace(titleText, "").trim()
+              : raw;
+            return withoutTitle.slice(0, 300);
+          })(),
+          displayUrl: displayUrlEl?.textContent ?? undefined,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+  });
 
-    return results;
+  return results;
 }

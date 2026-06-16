@@ -40,22 +40,22 @@ google-search-core/
 
 ```json
 {
-    "name": "google-search-core",
-    "version": "0.1.0",
-    "type": "module",
-    "scripts": {
-        "test": "bun test",
-        "typecheck": "bun tsc --noEmit"
-    },
-    "dependencies": {
-        "playwright": "^1.49.0",
-        "turndown": "^7.1.2",
-        "@mozilla/readability": "^0.5.0"
-    },
-    "devDependencies": {
-        "@types/turndown": "^5.0.5",
-        "@types/bun": "latest"
-    }
+  "name": "google-search-core",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bun tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "turndown": "^7.1.2",
+    "@mozilla/readability": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/turndown": "^5.0.5",
+    "@types/bun": "latest"
+  }
 }
 ```
 
@@ -68,15 +68,15 @@ google-search-core/
 ```ts
 // macOS Chrome paths
 const CHROME_BINARY =
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const DEFAULT_USER_DATA_DIR =
-    "/Users/sifatul/Library/Application Support/Google/Chrome";
+  "/Users/sifatul/Library/Application Support/Google/Chrome";
 
 export function getChromeBinaryPath(): string {
-    return CHROME_BINARY;
+  return CHROME_BINARY;
 }
 export function getUserDataDir(): string {
-    return DEFAULT_USER_DATA_DIR;
+  return DEFAULT_USER_DATA_DIR;
 }
 ```
 
@@ -86,38 +86,38 @@ export function getUserDataDir(): string {
 import { chromium, BrowserContext, Page } from "playwright";
 
 export class BrowserManager {
-    private context: BrowserContext | null = null;
+  private context: BrowserContext | null = null;
 
-    async start(userDataDir: string): Promise<BrowserContext> {
-        if (this.context) return this.context;
+  async start(userDataDir: string): Promise<BrowserContext> {
+    if (this.context) return this.context;
 
-        this.context = await chromium.launchPersistentContext(userDataDir, {
-            channel: "chrome",
-            headless: false,
-            executablePath:
-                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-            viewport: { width: 1280, height: 720 },
-            args: [
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-popup-blocking",
-            ],
-        });
-        return this.context;
+    this.context = await chromium.launchPersistentContext(userDataDir, {
+      channel: "chrome",
+      headless: false,
+      executablePath:
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      viewport: { width: 1280, height: 720 },
+      args: [
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-popup-blocking",
+      ],
+    });
+    return this.context;
+  }
+
+  async newPage(): Promise<Page> {
+    if (!this.context) throw new Error("BrowserManager not started");
+    const [page] = this.context.pages();
+    return page || this.context.newPage();
+  }
+
+  async close(): Promise<void> {
+    if (this.context) {
+      await this.context.close();
+      this.context = null;
     }
-
-    async newPage(): Promise<Page> {
-        if (!this.context) throw new Error("BrowserManager not started");
-        const [page] = this.context.pages();
-        return page || this.context.newPage();
-    }
-
-    async close(): Promise<void> {
-        if (this.context) {
-            await this.context.close();
-            this.context = null;
-        }
-    }
+  }
 }
 ```
 
@@ -151,19 +151,19 @@ export class BrowserManager {
 
 ```ts
 export interface ParsedQuery {
-    query: string;
-    site?: string;
-    filetype?: string;
-    inurl?: string;
-    intitle?: string;
-    exactPhrase?: string;
-    excludeTerms: string[];
-    afterDate?: string;
-    beforeDate?: string;
+  query: string;
+  site?: string;
+  filetype?: string;
+  inurl?: string;
+  intitle?: string;
+  exactPhrase?: string;
+  excludeTerms: string[];
+  afterDate?: string;
+  beforeDate?: string;
 }
 
 export function parseFilters(input: string): ParsedQuery {
-    /* ... */
+  /* ... */
 }
 ```
 
@@ -173,13 +173,13 @@ export function parseFilters(input: string): ParsedQuery {
 
 ```ts
 export function buildSearchUrl(parsed: ParsedQuery, page = 0): string {
-    const params = new URLSearchParams();
-    params.set("q", buildQueryString(parsed));
-    params.set("num", "10");
-    params.set("hl", "en");
-    params.set("gl", "us");
-    if (page > 0) params.set("start", String(page * 10));
-    return `https://www.google.com/search?${params.toString()}`;
+  const params = new URLSearchParams();
+  params.set("q", buildQueryString(parsed));
+  params.set("num", "10");
+  params.set("hl", "en");
+  params.set("gl", "us");
+  if (page > 0) params.set("start", String(page * 10));
+  return `https://www.google.com/search?${params.toString()}`;
 }
 ```
 
@@ -189,39 +189,35 @@ export function buildSearchUrl(parsed: ParsedQuery, page = 0): string {
 
 ```ts
 export interface SearchResult {
-    rank: number;
-    title: string;
-    url: string;
-    snippet: string;
-    displayUrl?: string;
+  rank: number;
+  title: string;
+  url: string;
+  snippet: string;
+  displayUrl?: string;
 }
 
 export async function extractSearchResults(
-    page: Page,
+  page: Page,
 ): Promise<SearchResult[]> {
-    await page.waitForSelector("#search", { timeout: 10000 });
+  await page.waitForSelector("#search", { timeout: 10000 });
 
-    const results = await page.$$eval("#search .g", (elements) => {
-        return elements
-            .filter(
-                (el) => el.querySelector("h3") && el.querySelector("a[href]"),
-            )
-            .map((el, i) => ({
-                rank: i + 1,
-                title: el.querySelector("h3")?.textContent?.trim() || "",
-                url:
-                    (el.querySelector("a[href]") as HTMLAnchorElement)?.href ||
-                    "",
-                snippet:
-                    (
-                        el.querySelector(".VwiC3b") ||
-                        el.querySelector('div[data-sncf="1"]')
-                    )?.textContent?.trim() || "",
-                displayUrl: el.querySelector(".TbwUpd")?.textContent,
-            }));
-    });
+  const results = await page.$$eval("#search .g", (elements) => {
+    return elements
+      .filter((el) => el.querySelector("h3") && el.querySelector("a[href]"))
+      .map((el, i) => ({
+        rank: i + 1,
+        title: el.querySelector("h3")?.textContent?.trim() || "",
+        url: (el.querySelector("a[href]") as HTMLAnchorElement)?.href || "",
+        snippet:
+          (
+            el.querySelector(".VwiC3b") ||
+            el.querySelector('div[data-sncf="1"]')
+          )?.textContent?.trim() || "",
+        displayUrl: el.querySelector(".TbwUpd")?.textContent,
+      }));
+  });
 
-    return results;
+  return results;
 }
 ```
 
@@ -246,17 +242,17 @@ import TurndownService from "turndown";
 const turndown = new TurndownService({ headingStyle: "atx" });
 
 export async function extractPageContent(
-    page: Page,
-    url: string,
+  page: Page,
+  url: string,
 ): Promise<string> {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
-    const html = await page.evaluate(() => document.documentElement.outerHTML);
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+  const html = await page.evaluate(() => document.documentElement.outerHTML);
 
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const article = new Readability(doc).parse();
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const article = new Readability(doc).parse();
 
-    if (!article) return "";
-    return turndown.turndown(article.content);
+  if (!article) return "";
+  return turndown.turndown(article.content);
 }
 ```
 
@@ -266,27 +262,27 @@ export async function extractPageContent(
 
 ```ts
 export interface SearchOptions {
-    maxResults?: number; // default 10
-    fetchContent?: boolean; // fetch + extract each result page
+  maxResults?: number; // default 10
+  fetchContent?: boolean; // fetch + extract each result page
 }
 
 export async function init(userDataDir?: string): Promise<void> {
-    /* ... */
+  /* ... */
 }
 export async function search(
-    query: string,
-    opts?: SearchOptions,
+  query: string,
+  opts?: SearchOptions,
 ): Promise<{ results; url }> {
-    /* ... */
+  /* ... */
 }
 export async function searchWithContent(
-    query: string,
-    opts?: SearchOptions,
+  query: string,
+  opts?: SearchOptions,
 ): Promise<{ results; url }> {
-    /* ... */
+  /* ... */
 }
 export async function close(): Promise<void> {
-    /* ... */
+  /* ... */
 }
 ```
 
@@ -312,39 +308,39 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { init, search, searchWithContent, close } from "../src/index";
 
 describe("Google Search Core", () => {
-    beforeAll(async () => {
-        await init();
-    }); // Chrome must be closed
-    afterAll(async () => {
-        await close();
-    });
+  beforeAll(async () => {
+    await init();
+  }); // Chrome must be closed
+  afterAll(async () => {
+    await close();
+  });
 
-    test("returns search results for a simple query", async () => {
-        const { results } = await search("bun javascript runtime");
-        expect(results.length).toBeGreaterThan(0);
-        expect(results[0]).toHaveProperty("title");
-        expect(results[0]).toHaveProperty("url");
-        expect(results[0]).toHaveProperty("snippet");
-    });
+  test("returns search results for a simple query", async () => {
+    const { results } = await search("bun javascript runtime");
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]).toHaveProperty("title");
+    expect(results[0]).toHaveProperty("url");
+    expect(results[0]).toHaveProperty("snippet");
+  });
 
-    test("respects maxResults", async () => {
-        const { results } = await search("typescript tutorial", {
-            maxResults: 3,
-        });
-        expect(results.length).toBeLessThanOrEqual(3);
+  test("respects maxResults", async () => {
+    const { results } = await search("typescript tutorial", {
+      maxResults: 3,
     });
+    expect(results.length).toBeLessThanOrEqual(3);
+  });
 
-    test("searchWithContent returns markdown", async () => {
-        const { results } = await searchWithContent("bun javascript", {
-            maxResults: 1,
-        });
-        expect(results[0].content.length).toBeGreaterThan(100);
+  test("searchWithContent returns markdown", async () => {
+    const { results } = await searchWithContent("bun javascript", {
+      maxResults: 1,
     });
+    expect(results[0].content.length).toBeGreaterThan(100);
+  });
 
-    test("parseFilters handles site: operator", async () => {
-        const { results } = await search("site:github.com bun runtime");
-        results.forEach((r) => expect(r.url).toContain("github.com"));
-    });
+  test("parseFilters handles site: operator", async () => {
+    const { results } = await search("site:github.com bun runtime");
+    results.forEach((r) => expect(r.url).toContain("github.com"));
+  });
 });
 ```
 

@@ -1,23 +1,23 @@
 {
-    "name": "@sifatul-web-search-tool",
-    "version": "0.0.0",
-    "private": true,
-    "scripts": {
-        "format": "bun x prettier --write .",
-        "format:check": "bun x prettier --check ."
-    },
-    "workspaces": {
-        "packages": [
-            "packages/*"
-        ],
-        "catalog": {
-            "playwright-core": "^1.49.0",
-            "turndown": "^7.1.2",
-            "@mozilla/readability": "^0.5.0",
-            "@types/bun": "^1.3.14",
-            "@types/node": "^25.9.3",
-            "@types/turndown": "^5.0.5",
-            "prettier": "^3.8.4"
-        }
+  "name": "@sifatul-web-search-tool",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "format": "bun x prettier --write .",
+    "format:check": "bun x prettier --check ."
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "catalog": {
+      "playwright-core": "^1.49.0",
+      "turndown": "^7.1.2",
+      "@mozilla/readability": "^0.5.0",
+      "@types/bun": "^1.3.14",
+      "@types/node": "^25.9.3",
+      "@types/turndown": "^5.0.5",
+      "prettier": "^3.8.4"
     }
+  }
 }

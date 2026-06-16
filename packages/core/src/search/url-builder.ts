@@ -23,19 +23,19 @@ import { buildQueryString } from "./filters";
  * @returns A complete `https://www.google.com/search?…` URL
  */
 export function buildSearchUrl(parsed: ParsedQuery, page = 0): string {
-    const params = new URLSearchParams();
+  const params = new URLSearchParams();
 
-    const q = buildQueryString(parsed);
-    if (q) params.set("q", q);
+  const q = buildQueryString(parsed);
+  if (q) params.set("q", q);
 
-    params.set("num", "10");
-    params.set("hl", "en");
-    params.set("gl", "us");
+  params.set("num", "10");
+  params.set("hl", "en");
+  params.set("gl", "us");
 
-    const safePage = Math.max(0, Math.floor(page));
-    if (safePage > 0) {
-        params.set("start", String(safePage * 10));
-    }
+  const safePage = Math.max(0, Math.floor(page));
+  if (safePage > 0) {
+    params.set("start", String(safePage * 10));
+  }
 
-    return `https://www.google.com/search?${params.toString()}`;
+  return `https://www.google.com/search?${params.toString()}`;
 }

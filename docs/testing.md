@@ -72,8 +72,8 @@ Add a `test()` block to `tests/unit.test.ts`:
 
 ```ts
 test("parseFilters handles a new operator", () => {
-    const result = parseFilters("query related:");
-    expect(result.related).toBe("");
+  const result = parseFilters("query related:");
+  expect(result.related).toBe("");
 });
 ```
 
@@ -84,14 +84,14 @@ Use the `withChrome()` helper which guarantees `teardown()` runs even if `setup(
 
 ```ts
 test.serial("my new integration test", async () => {
-    if (!process.env.GOOGLE_SEARCH_TEST) {
-        console.log("  ⏭  skipped");
-        return;
-    }
+  if (!process.env.GOOGLE_SEARCH_TEST) {
+    console.log("  ⏭  skipped");
+    return;
+  }
 
-    await withChrome(async () => {
-        // ... test logic
-    });
+  await withChrome(async () => {
+    // ... test logic
+  });
 });
 ```
 

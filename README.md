@@ -50,7 +50,7 @@ console.log(results);
 
 // 2b. Search + fetch each result page as Markdown
 const { results: full } = await searchWithContent("bun runtime", {
-    maxResults: 5,
+  maxResults: 5,
 });
 full.forEach((r) => console.log(r.title, r.content.slice(0, 200)));
 
@@ -96,7 +96,7 @@ Performs a Google search and returns structured results.
 
 ```ts
 const { results, url } = await search("bun runtime site:github.com", {
-    maxResults: 5,
+  maxResults: 5,
 });
 ```
 
@@ -116,7 +116,7 @@ Like `search()` but also fetches each result page and extracts its main content 
 
 ```ts
 const { results } = await searchWithContent("typescript tutorial", {
-    maxResults: 3,
+  maxResults: 3,
 });
 // results[0].content  →  Markdown string of the landing page
 ```
@@ -148,8 +148,8 @@ directory for the automated searches:
 
 ```ts
 await init({
-    userDataDir:
-        "/Users/sifatul/Library/Application Support/Google/Chrome Profile 2",
+  userDataDir:
+    "/Users/sifatul/Library/Application Support/Google/Chrome Profile 2",
 });
 ```
 
