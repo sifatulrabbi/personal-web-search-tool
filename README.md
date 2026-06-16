@@ -1,4 +1,4 @@
-# @sifatul-web-search-tool
+# sifatul-web-search-tool
 
 A Bun + TypeScript monorepo for programmatic Google search using your own Chrome profile on macOS.
 
