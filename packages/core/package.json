@@ -16,7 +16,7 @@
   "scripts": {
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "test:unit": "bun test tests/unit.test.ts",
+    "test:unit": "bun test tests/unit.test.ts tests/serp.test.ts tests/content.test.ts",
     "test:integration": "GOOGLE_SEARCH_TEST=1 bun test tests/integration.test.ts",
     "typecheck": "bun x tsc --noEmit",
     "typecheck:watch": "bun x tsc --noEmit --watch",
@@ -29,13 +29,14 @@
   "dependencies": {
     "playwright-core": "catalog:",
     "turndown": "catalog:",
-    "@mozilla/readability": "catalog:"
+    "@mozilla/readability": "catalog:",
+    "linkedom": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@types/turndown": "catalog:",
-    "bun-types": "^1.3.14",
+    "bun-types": "catalog:",
     "prettier": "catalog:"
   }
 }

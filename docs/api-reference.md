@@ -22,7 +22,7 @@ Start Chrome with your user profile. Must be called before `search()` or `search
 ```ts
 import { init } from "google-search-core";
 
-// Use macOS defaults
+// Use defaults (per-OS profile dir; Chrome located via Playwright channel)
 await init();
 
 // Override profile path or headless mode
@@ -34,11 +34,21 @@ Concurrent callers are safe — only one Chrome instance is ever created. Subseq
 
 **`BrowserManagerDeps`**
 
-| Field          | Type      | Default                                                            | Description                                             |
-| -------------- | --------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
-| `chromeBinary` | `string`  | `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`     | Path to Chrome binary                                   |
-| `userDataDir`  | `string`  | `/Users/sifatul/Library/Application Support/Google/Chrome/Default` | Chrome profile directory                                |
-| `headless`     | `boolean` | `false`                                                            | Run Chrome without a visible window (set `true` for CI) |
+| Field          | Type      | Default                            | Description                                                                |
+| -------------- | --------- | ---------------------------------- | -------------------------------------------------------------------------- |
+| `chromeBinary` | `string`  | _(Playwright `channel: "chrome"`)_ | Override the Chrome binary. Unset → Playwright discovers installed Chrome. |
+| `userDataDir`  | `string`  | per-OS default (see below)         | Chrome profile directory                                                   |
+| `headless`     | `boolean` | `false`                            | Run Chrome without a visible window (set `true` for CI)                    |
+
+**Resolution order** (both binary and profile): explicit argument → environment
+variable (`SWEB_SEARCH_CHROME_BINARY` / `SWEB_SEARCH_PROFILE`) → computed default.
+
+**Default profile dir** (macOS and Linux only — Windows is unsupported):
+
+| OS    | Default profile dir                                   |
+| ----- | ----------------------------------------------------- |
+| macOS | `~/Library/Application Support/Google/Chrome/Default` |
+| Linux | `~/.config/google-chrome/Default`                     |
 
 > **Note**: Managed mode — the library owns Chrome's lifecycle. Only one Chrome instance runs at a time.
 
@@ -56,9 +66,10 @@ const { results, url } = await search("bun runtime", { maxResults: 5 });
 
 **`SearchOptions`**
 
-| Field        | Type     | Default | Description                                                   |
-| ------------ | -------- | ------- | ------------------------------------------------------------- |
-| `maxResults` | `number` | `10`    | Maximum results to return (capped by Google's per-page limit) |
+| Field        | Type     | Default | Description                                                                                                                                     |
+| ------------ | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxResults` | `number` | `10`    | Maximum results to return. Google returns ~10 organic results per page, so values >10 are effectively capped at one page — use `page` for more. |
+| `page`       | `number` | `0`     | 0-based result page (0 = first page, 1 = second page, …)                                                                                        |
 
 **Returns**
 
@@ -93,13 +104,11 @@ const { results } = await searchWithContent("typescript tutorial", {
 results[0].content; // Markdown string of the landing page
 ```
 
-Concurrent callers are safe — a single content-extraction page is shared across all callers via a promise-guarded factory.
+Each result page is fetched on its own isolated Playwright page (up to 4 in
+parallel), so a slow or broken page never blocks or breaks the others — a failed
+extraction yields an empty `content` string rather than rejecting.
 
-**`SearchOptions`**
-
-| Field        | Type     | Default | Description                        |
-| ------------ | -------- | ------- | ---------------------------------- |
-| `maxResults` | `number` | `10`    | Max results AND max pages to fetch |
+**`SearchOptions`** — same as `search()` (`maxResults`, `page`).
 
 **Returns**
 
@@ -116,7 +125,7 @@ Array<{
 }>;
 ```
 
-**Throws** if Chrome has not been initialised, the underlying search fails, the URL is not an `http(s)` URL, or the underlying page has been closed before extraction.
+**Throws** if Chrome has not been initialised or the underlying search fails. Per-result extraction failures (unreachable page, non-`http(s)` URL, unreadable content) do **not** throw — they yield `content: ""`.
 
 ---
 
@@ -145,8 +154,8 @@ import { createBrowserManager } from "google-search-core/src/browser/manager";
 
 const manager = createBrowserManager();
 await manager.start();
-const page = await manager.newPage();
-await manager.goto("https://www.google.com");
+const page = await manager.newPage(); // a fresh page; caller closes it
+await page.goto("https://www.google.com");
 await manager.close();
 ```
 
@@ -155,8 +164,7 @@ await manager.close();
 ```ts
 type BrowserManager = {
   start: () => Promise<BrowserContext>;
-  newPage: () => Promise<Page>;
-  goto: (url: string, timeoutMs?: number) => Promise<void>;
+  newPage: () => Promise<Page>; // creates a fresh page each call
   close: () => Promise<void>;
 };
 ```
@@ -168,9 +176,10 @@ type BrowserManager = {
 --no-default-browser-check
 --disable-popup-blocking
 --disable-blink-features=AutomationControlled
+# --no-sandbox is added ONLY when headless: true
 ```
 
-> **Note on anti-detection:** Playwright sets `navigator.webdriver = true` in all pages, which is one of Google's strongest automation signals. The manager patches this via `context.on("page")` + `page.addInitScript()` so the property returns `undefined`. Combined with `--disable-blink-features=AutomationControlled` and the user's real Chrome profile (cookies, history, login state), this avoids the "Are you a human?" CAPTCHA in normal usage.
+> **Note on anti-detection:** Playwright sets `navigator.webdriver = true` in all pages, which is one of Google's strongest automation signals. The manager patches this via `context.addInitScript()` (registered once on the context, before any navigation) so the property returns `undefined`. Combined with `--disable-blink-features=AutomationControlled` and the user's real Chrome profile (cookies, history, login state), this avoids the "Are you a human?" CAPTCHA in normal usage.
 
 ---
 
@@ -288,14 +297,17 @@ const results = await extractSearchResults(page);
 
 ## Content Layer
 
-### `createPageContentExtractor(page): PageContentExtractor`
+### `createPageContentExtractor(newPage): PageContentExtractor`
 
-Factory — bind a content extractor to an existing Playwright `Page` for reuse across multiple URLs.
+Factory — takes a `newPage` factory (e.g. `manager.newPage`) and returns an
+extractor that opens, scrapes, and closes a **fresh page per URL**. This keeps
+every extraction isolated so callers can run many in parallel without
+navigations interrupting one another.
 
 ```ts
 import { createPageContentExtractor } from "google-search-core/src/content/extractor";
 
-const extractor = createPageContentExtractor(page);
+const extractor = createPageContentExtractor(() => manager.newPage());
 const markdown = await extractor.extract("https://example.com/article");
 ```
 
@@ -305,16 +317,29 @@ const markdown = await extractor.extract("https://example.com/article");
 type PageContentExtractor = {
   /** Navigate to `url` and return its main content as Markdown. Returns "" on failure. */
   extract: (url: string, timeoutMs?: number) => Promise<string>;
-  /** Close the underlying Playwright Page and release resources. */
-  dispose: () => Promise<void>;
 };
+```
+
+> `extract()` **throws** only for a non-`http(s)` URL (a programming error).
+> Navigation / parse failures resolve to `""`.
+
+### `htmlToMarkdown(html): string`
+
+Pure HTML→Markdown conversion (no browser, no network), exported for testing
+and reuse.
+
+```ts
+import { htmlToMarkdown } from "google-search-core/src/content/extractor";
+
+const md = htmlToMarkdown("<article><h1>Hi</h1><p>…</p></article>");
 ```
 
 **Pipeline**
 
-1. Navigate to URL → `waitUntil: "domcontentloaded"`
-2. Extract `document.documentElement.outerHTML`
-3. Parse with **Mozilla Readability** → extract `<article>` content
+1. Navigate to URL → `waitUntil: "domcontentloaded"` _(in `extract()`)_
+2. Extract `document.documentElement.outerHTML` _(in `extract()`)_
+3. Parse the HTML with **`linkedom`** (Bun/Node has no `DOMParser`), then run
+   **Mozilla Readability** → extract the article content
 4. Convert to **Markdown** with **Turndown** (`headingStyle: "atx"`, `codeBlockStyle: "fenced"`)
 
 Returns `""` if Readability cannot find a readable article (e.g. 404 page, bare landing page, or malformed HTML).

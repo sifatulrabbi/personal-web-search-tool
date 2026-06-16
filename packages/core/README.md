@@ -1,6 +1,6 @@
 # @sifatul-web-search-tool/core
 
-Programmatic Google search using your own Chrome profile on macOS — no API key, no depersonalized results.
+Programmatic Google search using your own Chrome profile — no API key, no depersonalized results. **macOS and Linux** (Windows is not supported).
 
 Built with **Bun**, **TypeScript**, and **Playwright** (`channel: 'chrome'`).
 
@@ -17,7 +17,7 @@ results you see in your browser.
 ## Requirements
 
 - [Bun](https://bun.com) v1.0+
-- Google Chrome installed at `/Applications/Google Chrome.app` (macOS)
+- Google Chrome installed (located automatically via Playwright's `channel: "chrome"` on macOS/Linux)
 - Chrome must be **fully closed** before starting (profile lock)
 
 ---
@@ -26,8 +26,11 @@ results you see in your browser.
 
 ```bash
 # in your project
-bun add @sifatul-web-search-tool/core playwright-core turndown @mozilla/readability
+bun add @sifatul-web-search-tool/core playwright-core turndown @mozilla/readability linkedom
 ```
+
+> `linkedom` provides a DOM for Mozilla Readability to parse against, since the
+> Bun/Node runtime has no global `DOMParser`.
 
 > `playwright-core` (~4 MB) is used instead of the full `playwright` package (~35 MB)
 > because this library drives your **installed Chrome** via `channel: 'chrome'` rather
@@ -141,6 +144,19 @@ Pass a raw query string with any of these operators:
 
 ## ⚠️ Important Notes
 
+### Result limits & pagination
+
+Google returns ~10 organic results per page. `maxResults` only trims that page,
+so values above ~10 don't fetch more — pass `page` (0-based) to fetch later pages:
+
+```ts
+await search("bun runtime", { page: 1 }); // results 11–20
+```
+
+> The underlying URL still sends `num=10`, but Google has largely deprecated the
+> `num` parameter, so per-page count is best-effort. Treat `page` as the reliable
+> way to go deeper.
+
 ### Chrome must be closed before starting
 
 This library launches Chrome with your profile directory. If Chrome is already running,
@@ -153,11 +169,19 @@ manual browsing _and_ automated searches at the same time, use a separate profil
 directory for the automated searches:
 
 ```ts
+import os from "node:os";
+import path from "node:path";
+
 await init({
-  userDataDir:
-    "/Users/sifatul/Library/Application Support/Google/Chrome Profile 2",
+  userDataDir: path.join(
+    os.homedir(),
+    "Library/Application Support/Google/Chrome/Profile 2", // macOS; Linux: ~/.config/google-chrome/Profile 2
+  ),
 });
 ```
+
+You can also set the `SWEB_SEARCH_PROFILE` env var (profile dir) or
+`SWEB_SEARCH_CHROME_BINARY` (binary path) instead of passing `deps`.
 
 ### Google may show CAPTCHA
 
@@ -169,10 +193,11 @@ Chrome window that opens, then wait for the script to continue.
 
 The library applies the following anti-detection measures automatically:
 
-- `navigator.webdriver` is patched to `undefined` via `page.addInitScript()`
+- `navigator.webdriver` is patched to `undefined` via `context.addInitScript()`
 - `--disable-blink-features=AutomationControlled` is added to Chrome launch args
-- `--no-sandbox` suppresses Playwright-injected warnings
 - Well-known automation-flagged flags are omitted from launch args
+- `--no-sandbox` is **not** used in headful mode (it weakens the sandbox on your
+  real profile); it is added only when `headless: true`
 
 ---
 

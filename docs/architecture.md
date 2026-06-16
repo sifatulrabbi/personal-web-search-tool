@@ -78,12 +78,14 @@ can be added by replacing `launchPersistentContext` with `chromium.connectOverCD
 
 Every Playwright `Page` created by the library is eventually closed:
 
-- `search()` closes its page in a `try/finally` block
-- The content-extraction page is closed by `dispose()` called from `close()`
-- If page or extractor creation fails, the page is closed before the error propagates
+- `search()` creates a fresh page and closes it in a `try/finally` block
+- `searchWithContent()` opens one isolated page **per result URL** and closes each
+  in a `finally` block — so concurrent extractions never share a page (a shared
+  page cannot service concurrent `goto()` calls)
+- `newPage()` truly creates a new page each call (it does not reuse a singleton)
 
-All `close()` and `dispose()` calls suppress the expected `"Target closed"` noise
-from Playwright while logging any unexpected errors to `console.error`.
+`close()` suppresses the expected `"Target closed"` noise from Playwright while
+logging any unexpected errors to `console.error`.
 
 ---
 
@@ -109,14 +111,21 @@ extractSearchResults()  ──►  SearchResult[]
     └──► each URL fetched + extracted   (searchWithContent)
               │
               ▼
-         createPageContentExtractor(page)
+         createPageContentExtractor(newPage)   // fresh page per URL
               │
               ▼
-         extractor.extract(url)  ──►  Markdown string
+         extractor.extract(url)
+              │   (page.goto → outerHTML)
+              ▼
+         htmlToMarkdown(html)   // linkedom → Readability → Turndown
               │
               ▼
          SearchResultWithContent[]
 ```
+
+> **Why `linkedom`?** Mozilla Readability needs a DOM `document`, but the Bun/Node
+> runtime has no `DOMParser`. `htmlToMarkdown()` parses the page HTML with
+> `linkedom` (a lightweight standards-compliant DOM) rather than a browser global.
 
 ---
 
@@ -139,9 +148,10 @@ Google's bot-detection (reCAPTCHA / "Are you a human?") is triggered by
 automation fingerprints in the browser. Three measures are applied:
 
 1. **`navigator.webdriver` patch** — Playwright always sets
-   `navigator.webdriver = true`. An init script registered via
-   `context.on("page")` redefines the getter to return `undefined` on every
-   new page before any navigation occurs.
+   `navigator.webdriver = true`. An init script registered once via
+   `context.addInitScript()` redefines the getter to return `undefined` on every
+   page (current and future) before any navigation occurs. (Registering per-page
+   after the `"page"` event raced with the first navigation.)
 
 2. **`--disable-blink-features=AutomationControlled`** — added to the Chrome
    launch args so Chrome does not expose `AutomationControlled` as an enabled
@@ -151,6 +161,10 @@ automation fingerprints in the browser. Three measures are applied:
    `--disable-backgrounding-occluded-windows`, and `--disable-renderer-backgrounding`
    were dropped: they are well-known automation flags that flag the browser
    as non-human.
+
+`--no-sandbox` is also kept out of headful runs — disabling the sandbox on your
+real, logged-in profile is a security risk and is unnecessary outside
+containers. It is added only when `headless: true` (CI / container use).
 
 The user's real Chrome profile (`userDataDir`) provides cookies, history, and
 login state — the strongest CAPTCHA-avoidance signal. Without a real profile

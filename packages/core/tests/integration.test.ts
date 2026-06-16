@@ -119,4 +119,28 @@ describe("Integration — Google Search", () => {
       });
     },
   );
+
+  test.serial(
+    "searchWithContent() extracts content for MULTIPLE results concurrently",
+    async () => {
+      // Regression guard: extraction used to share one page, so concurrent
+      // navigations clobbered each other and only one result got content.
+      if (!process.env.GOOGLE_SEARCH_TEST) {
+        console.log(`  ⏭  skipped: ${SKIP_REASON}`);
+        return;
+      }
+
+      await withChrome(async () => {
+        const { results } = await searchWithContent("typescript handbook", {
+          maxResults: 4,
+        });
+
+        expect(results.length).toBeGreaterThan(1);
+        // At least two distinct pages should yield real content — a single
+        // shared page would leave all-but-one empty.
+        const withContent = results.filter((r) => r.content.length > 100);
+        expect(withContent.length).toBeGreaterThanOrEqual(2);
+      });
+    },
+  );
 });

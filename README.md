@@ -1,18 +1,18 @@
 # sifatul-web-search-tool
 
-A Bun + TypeScript monorepo for programmatic Google search using your own Chrome profile on macOS.
+A Bun + TypeScript monorepo for programmatic Google search using your own Chrome profile (macOS and Linux).
 
 - **`@sifatul-web-search-tool/core`** — the library (Playwright + Chrome)
 - **`@sifatul-web-search-tool/cli`** — terminal interface (`sweb-search`)
 
 ## Requirements
 
-|         |                                                   |
-| ------- | ------------------------------------------------- |
-| Runtime | [Bun](https://bun.com) v1.0+                      |
-| Browser | Google Chrome (`/Applications/Google Chrome.app`) |
-| OS      | macOS                                             |
-| Node.js | Not required                                      |
+|         |                                                      |
+| ------- | ---------------------------------------------------- |
+| Runtime | [Bun](https://bun.com) v1.0+                         |
+| Browser | Google Chrome (located automatically via Playwright) |
+| OS      | macOS or Linux (Windows not supported)               |
+| Node.js | Not required                                         |
 
 ## Install
 

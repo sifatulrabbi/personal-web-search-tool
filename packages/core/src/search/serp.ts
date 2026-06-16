@@ -34,8 +34,8 @@ export interface SearchResult {
 // Legacy layout used #search .g — kept as a fallback for older Google versions.
 //
 // Inside each result block:
-//   Title       — h3 (inside .yuRUbf > a)
-//   URL         — a[href] (inside .yuRUbf)
+//   Title       — h3
+//   URL         — a[href]
 //   Snippet     — .w8qArf or .ITZIwc (new layout), .VwiC3b (legacy)
 //                  fallback: div[data-sncf] or div[data-sncf="1"]
 //   Display URL — .V9tjod (new layout), .TbwUpd (legacy)
@@ -49,44 +49,68 @@ const SELECTORS = {
    */
   resultBlock: "#search .MjjYud",
   resultBlockFallback: "#search .g",
-  title: "h3",
-  anchor: "a[href]",
-  linkContainer: ".yuRUbf",
-  /** Snippet description — current layout class names. */
-  snippet: ".w8qArf, .ITZIwc",
-  /** Legacy snippet class names and data-attribute fallbacks. */
-  snippetFallback: ".VwiC3b, div[data-sncf], div[data-sncf='1']",
-  /** Display URL — current layout, then legacy. */
-  displayUrl: ".V9tjod, .TbwUpd",
 } as const;
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Parser
 // ---------------------------------------------------------------------------
 
 /**
- * Extract the snippet / description text from a result block.
+ * Parse organic result blocks into structured `SearchResult` objects.
  *
- * Strategy:
- *  1. Try specific description selectors (.w8qArf, .ITZIwc, .VwiC3b …)
- *  2. If nothing matches, fall back to the block's own innerText minus the
- *     title text — this captures whatever descriptive text is visible without
- *     needing to know the exact class name.
+ * This function is intentionally **self-contained** (no module-level
+ * references, no closures): it is serialised and shipped into the browser by
+ * Playwright's `$$eval`, and is also called directly against a `linkedom`
+ * document in unit tests. Anything it references must be available in both
+ * environments, so all selectors are inlined here.
+ *
+ * Skips non-result blocks (e.g. "People also ask") by requiring both an `<h3>`
+ * title and an anchor. Blocks with no resolvable URL are skipped.
  */
-function extractSnippet(block: Element, titleText: string): string {
-  // Try specific description selectors first.
-  const specific =
-    block.querySelector(SELECTORS.snippet) ??
-    block.querySelector(SELECTORS.snippetFallback);
+export function parseOrganicResults(elements: Element[]): SearchResult[] {
+  return (
+    elements
+      .map((el, index): SearchResult | null => {
+        const anchor = el.querySelector("a[href]") as HTMLAnchorElement | null;
+        const href = anchor?.href?.trim();
+        if (!href) return null;
 
-  if (specific?.textContent?.trim()) {
-    return specific.textContent.trim();
-  }
+        const titleText = el.querySelector("h3")?.textContent?.trim();
+        if (!titleText) return null;
 
-  // Fallback: block innerText minus the title.
-  const raw = (block as HTMLElement).innerText?.trim() ?? "";
-  const withoutTitle = titleText ? raw.replace(titleText, "").trim() : raw;
-  return withoutTitle.slice(0, 300);
+        const displayUrlEl = el.querySelector(".V9tjod, .TbwUpd");
+
+        // Snippet: try the specific description selectors first, then fall back
+        // to the block's own text minus the title.
+        const specificText = (
+          el.querySelector(".w8qArf, .ITZIwc, .VwiC3b") ??
+          el.querySelector("div[data-sncf], div[data-sncf='1']")
+        )?.textContent?.trim();
+
+        let snippet: string;
+        if (specificText) {
+          snippet = specificText;
+        } else {
+          const raw = (
+            (el as HTMLElement).innerText ??
+            el.textContent ??
+            ""
+          ).trim();
+          snippet = raw.replace(titleText, "").trim().slice(0, 300);
+        }
+
+        return {
+          rank: index + 1,
+          title: titleText,
+          url: href,
+          snippet,
+          displayUrl: displayUrlEl?.textContent ?? undefined,
+        };
+      })
+      .filter((r): r is SearchResult => r !== null)
+      // Re-rank after filtering so ranks are contiguous (1, 2, 3, …).
+      .map((r, index) => ({ ...r, rank: index + 1 }))
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -95,11 +119,6 @@ function extractSnippet(block: Element, titleText: string): string {
 
 /**
  * Wait for the Google results container and extract all organic search results.
- *
- * Skips non-result blocks (e.g. "People also ask", knowledge panels) by
- * requiring an `<h3>` title element inside each result block.
- *
- * Blocks with no resolvable URL are skipped entirely.
  *
  * @throws Error if the results container does not appear within `timeoutMs`
  */
@@ -117,50 +136,5 @@ export async function extractSearchResults(
     ? SELECTORS.resultBlock
     : SELECTORS.resultBlockFallback;
 
-  const results = await page.$$eval(resultSelector, (elements) => {
-    // Only keep blocks that look like an organic result (have h3 + anchor)
-    const organic = elements.filter(
-      (el) => el.querySelector("h3") && el.querySelector("a[href]"),
-    );
-
-    return organic
-      .map((el, index) => {
-        const titleEl = el.querySelector("h3");
-        const anchor = el.querySelector("a[href]") as HTMLAnchorElement | null;
-        const displayUrlEl = el.querySelector(".V9tjod, .TbwUpd");
-
-        const href = anchor?.href?.trim();
-        if (!href) return null;
-
-        if (!titleEl?.textContent) return null;
-
-        const titleText = titleEl.textContent.trim();
-
-        return {
-          rank: index + 1,
-          title: titleText,
-          url: href,
-          snippet: (() => {
-            // Inline snippet extraction mirrors extractSnippet() so
-            // the logic is available inside $$eval without passing
-            // function references across the serialisation boundary.
-            const specific =
-              el.querySelector(".w8qArf, .ITZIwc, .VwiC3b") ??
-              el.querySelector("div[data-sncf], div[data-sncf='1']");
-            if (specific?.textContent?.trim()) {
-              return specific.textContent.trim();
-            }
-            const raw = (el as HTMLElement).innerText?.trim() ?? "";
-            const withoutTitle = titleText
-              ? raw.replace(titleText, "").trim()
-              : raw;
-            return withoutTitle.slice(0, 300);
-          })(),
-          displayUrl: displayUrlEl?.textContent ?? undefined,
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
-  });
-
-  return results;
+  return page.$$eval(resultSelector, parseOrganicResults);
 }

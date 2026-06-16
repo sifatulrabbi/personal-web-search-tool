@@ -9,7 +9,7 @@
  */
 
 import { chromium, type BrowserContext, type Page } from "playwright-core";
-import { DEFAULT_CHROME_BINARY, DEFAULT_USER_DATA_DIR } from "./profile";
+import { resolveUserDataDir, resolveChromeBinary } from "./profile";
 
 // ---------------------------------------------------------------------------
 // Stealth: patch navigator.webdriver
@@ -19,8 +19,9 @@ import { DEFAULT_CHROME_BINARY, DEFAULT_USER_DATA_DIR } from "./profile";
 // redefines the getter so it returns undefined — indistinguishable from a real
 // Chrome instance from the page's perspective.
 //
-// The script runs before every navigation on every new page, so it is safe
-// even when the user navigates cross-origin or reloads.
+// Registered on the *context* via addInitScript so it runs before every
+// navigation on every page (current and future) — registering per-page after
+// the "page" event raced with the first navigation.
 
 const STEALTH_INIT_SCRIPT = `
 Object.defineProperty(navigator, 'webdriver', {
@@ -33,7 +34,7 @@ Object.defineProperty(navigator, 'webdriver', {
 // ---------------------------------------------------------------------------
 
 export interface BrowserManagerDeps {
-  /** Path to the Chrome binary on macOS. */
+  /** Path to the Chrome binary. Defaults to Playwright's `channel: "chrome"` discovery. */
   chromeBinary?: string;
   /** Chrome user-data-dir (profile directory). */
   userDataDir?: string;
@@ -44,10 +45,8 @@ export interface BrowserManagerDeps {
 export type BrowserManager = {
   /** Start Chrome and return the persistent context. Safe to call twice. */
   start: () => Promise<BrowserContext>;
-  /** Get (or create) a page within the browser context. */
+  /** Create a fresh page within the browser context. Caller is responsible for closing it. */
   newPage: () => Promise<Page>;
-  /** Navigate to a URL and wait for DOM content to be ready. */
-  goto: (url: string, timeoutMs?: number) => Promise<void>;
   /** Close the browser context. */
   close: () => Promise<void>;
 };
@@ -60,13 +59,17 @@ export type BrowserManager = {
 // picks up. When using the user's own Chrome profile via launchPersistentContext
 // there is no need to fight Chrome's normal background behaviour — the user's
 // cookies, history, and login state are what actually avoid CAPTCHAs.
+//
+// --no-sandbox is NOT included by default: disabling the sandbox on the user's
+// real, logged-in profile is a meaningful security reduction. It is only added
+// for headless runs, where the tool is typically used in containers / CI that
+// require it.
 
 const DEFAULT_LAUNCH_ARGS = [
   "--no-first-run",
   "--no-default-browser-check",
   "--disable-popup-blocking",
   "--disable-blink-features=AutomationControlled",
-  "--no-sandbox",
 ];
 
 // ---------------------------------------------------------------------------
@@ -76,20 +79,11 @@ const DEFAULT_LAUNCH_ARGS = [
 export function createBrowserManager(
   deps: BrowserManagerDeps = {},
 ): BrowserManager {
-  const chromeBinary = deps.chromeBinary ?? DEFAULT_CHROME_BINARY;
-  const userDataDir = deps.userDataDir ?? DEFAULT_USER_DATA_DIR;
+  const userDataDir = resolveUserDataDir(deps.userDataDir);
+  const chromeBinary = resolveChromeBinary(deps.chromeBinary);
   const headless = deps.headless ?? false;
 
   let context: BrowserContext | null = null;
-
-  // `newPage` is captured in a closure so that `goto` and any other
-  // method that needs a page never depends on `this` — callers may safely
-  // destructure individual methods out of this object without breaking.
-  async function getPage(): Promise<Page> {
-    if (!context) throw new Error("BrowserManager: call start() first");
-    const pages = context.pages() ?? [];
-    return pages.length > 0 ? pages[0] : context.newPage();
-  }
 
   return {
     async start(): Promise<BrowserContext> {
@@ -98,34 +92,26 @@ export function createBrowserManager(
       context = await chromium.launchPersistentContext(userDataDir, {
         channel: "chrome",
         headless,
-        executablePath: chromeBinary,
+        // Only override the binary when explicitly set; otherwise let
+        // `channel: "chrome"` resolve the installed Chrome cross-platform.
+        ...(chromeBinary ? { executablePath: chromeBinary } : {}),
         viewport: { width: 1280, height: 720 },
-        args: DEFAULT_LAUNCH_ARGS,
+        args: headless
+          ? [...DEFAULT_LAUNCH_ARGS, "--no-sandbox"]
+          : DEFAULT_LAUNCH_ARGS,
       });
 
-      // Patch navigator.webdriver on every new page before it navigates.
-      context.on("page", (page: Page) => {
-        void page.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
-      });
-
-      // Also patch any pages that already exist (e.g. a blank startup tab).
-      for (const existingPage of context.pages()) {
-        void existingPage.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
-      }
+      // Patch navigator.webdriver on every page in this context before any
+      // navigation. Context-level registration avoids the race that per-page
+      // registration had (addInitScript is async; navigation could start first).
+      await context.addInitScript(STEALTH_INIT_SCRIPT);
 
       return context;
     },
 
     async newPage(): Promise<Page> {
-      return getPage();
-    },
-
-    async goto(url: string, timeoutMs = 15_000): Promise<void> {
-      const page = await getPage();
-      await page.goto(url, {
-        waitUntil: "domcontentloaded",
-        timeout: timeoutMs,
-      });
+      if (!context) throw new Error("BrowserManager: call start() first");
+      return context.newPage();
     },
 
     async close(): Promise<void> {

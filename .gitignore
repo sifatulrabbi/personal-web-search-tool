@@ -6,7 +6,6 @@ dist/
 *.tsbuildinfo
 
 # Browser cache
-/Users/sifatul/Library/Application Support/Google/Chrome/Cache/
 .cache/
 .puppeteer_cache/
 
@@ -32,3 +31,6 @@ Thumbs.db
 # Temp files
 tmp/
 *.tmp
+
+# Planning files
+.planning/

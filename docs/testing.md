@@ -2,10 +2,17 @@
 
 ## Test Suites
 
-| Suite             | File                        | Browser Required? | Env var                |
-| ----------------- | --------------------------- | ----------------- | ---------------------- |
-| Unit tests        | `tests/unit.test.ts`        | No                | —                      |
-| Integration tests | `tests/integration.test.ts` | Yes               | `GOOGLE_SEARCH_TEST=1` |
+| Suite              | File                        | Browser Required?  | Env var                |
+| ------------------ | --------------------------- | ------------------ | ---------------------- |
+| Filters / URL      | `tests/unit.test.ts`        | No                 | —                      |
+| SERP parser        | `tests/serp.test.ts`        | No (uses linkedom) | —                      |
+| Content → Markdown | `tests/content.test.ts`     | No (uses linkedom) | —                      |
+| Integration tests  | `tests/integration.test.ts` | Yes                | `GOOGLE_SEARCH_TEST=1` |
+
+`tests/serp.test.ts` and `tests/content.test.ts` run the real `parseOrganicResults`
+and `htmlToMarkdown` functions against static HTML fixtures (parsed with `linkedom`),
+so the scraping and content-extraction logic has fast, browser-free coverage. The
+content test is the regression guard for the `DOMParser is not defined` bug.
 
 ---
 
@@ -14,7 +21,7 @@
 Pure logic — no browser, no network. Fast.
 
 ```bash
-bun test tests/unit.test.ts
+bun run test:unit   # unit + serp + content
 ```
 
 **Covers:**
@@ -22,6 +29,8 @@ bun test tests/unit.test.ts
 - `parseFilters()` — all operators, edge cases, empty input, Unicode, invalid dates
 - `buildQueryString()` — all operators, ordering, encoding
 - `buildSearchUrl()` — URL construction, pagination, encoding, edge cases (negative page, empty query)
+- `parseOrganicResults()` — SERP block parsing, legacy/new selectors, skipping non-organic blocks
+- `htmlToMarkdown()` — Readability + Turndown conversion, boilerplate stripping, empty/malformed input
 
 ---
 

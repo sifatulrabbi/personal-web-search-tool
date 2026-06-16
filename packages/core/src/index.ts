@@ -21,20 +21,17 @@ import {
   type BrowserManager,
   type BrowserManagerDeps,
 } from "./browser/manager";
-import { parseFilters, buildQueryString } from "./search/filters";
+import { parseFilters } from "./search/filters";
 import { buildSearchUrl } from "./search/url-builder";
 import { extractSearchResults, type SearchResult } from "./search/serp";
-import {
-  createPageContentExtractor,
-  type PageContentExtractor,
-} from "./content/extractor";
-import type { Page } from "playwright-core";
+import { createPageContentExtractor } from "./content/extractor";
 
 // ---------------------------------------------------------------------------
 // Re-exports
 // ---------------------------------------------------------------------------
 
 export type { SearchResult } from "./search/serp";
+export type { BrowserManagerDeps } from "./browser/manager";
 
 /** `SearchResult` with the additional `content` field returned by `searchWithContent()`. */
 export interface SearchResultWithContent extends SearchResult {
@@ -42,30 +39,22 @@ export interface SearchResultWithContent extends SearchResult {
 }
 
 // ---------------------------------------------------------------------------
+// Tuning
+// ---------------------------------------------------------------------------
+
+/**
+ * How many result pages to fetch concurrently during `searchWithContent()`.
+ * Each extraction uses its own page, so this bounds open tabs (and memory /
+ * network) rather than risking concurrent navigations on a shared page.
+ */
+const CONTENT_CONCURRENCY = 4;
+
+// ---------------------------------------------------------------------------
 // Internal state
 // ---------------------------------------------------------------------------
 
 let browserManager: BrowserManager | null = null;
-let contentExtractor: PageContentExtractor | null = null;
-let contentExtractorPromise: Promise<PageContentExtractor> | null = null;
 let initPromise: Promise<void> | null = null;
-
-/**
- * Create a content extractor on `page`, ensuring the page is closed if
- * creation fails.  Used as the TOCTOU-safe factory for `contentExtractorPromise`.
- */
-async function createPageContentExtractorSafely(
-  page: Page,
-): Promise<PageContentExtractor> {
-  try {
-    return createPageContentExtractor(page);
-  } catch (cause) {
-    await page.close().catch(() => {});
-    throw Object.assign(new Error("Failed to create content extractor"), {
-      cause,
-    });
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,8 +62,14 @@ async function createPageContentExtractorSafely(
 
 /** Options accepted by `search()` and `searchWithContent()`. */
 export interface SearchOptions {
-  /** Maximum number of results to return (capped by what Google returns per page). */
+  /**
+   * Maximum number of results to return. Google returns ~10 organic results
+   * per page, so values above 10 are effectively capped at one page's worth —
+   * use `page` to fetch later pages.
+   */
   maxResults?: number;
+  /** 0-based result page to fetch (0 = first page, 1 = second page, …). */
+  page?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +84,7 @@ export interface SearchOptions {
  * successful init are a no-op (idempotent).
  *
  * @param deps — optional overrides (Chrome binary path, profile directory).
- *              Pass an empty object `{}` to use the macOS defaults.
+ *              Pass an empty object `{}` to use the defaults.
  */
 export async function init(deps: BrowserManagerDeps = {}): Promise<void> {
   // Fast path: already initialised.
@@ -102,7 +97,6 @@ export async function init(deps: BrowserManagerDeps = {}): Promise<void> {
       const mgr = createBrowserManager(deps);
       await mgr.start();
       browserManager = mgr;
-      return;
     })();
   }
 
@@ -115,40 +109,11 @@ export async function init(deps: BrowserManagerDeps = {}): Promise<void> {
  * through.
  */
 export async function close(): Promise<void> {
-  // Dispose the content extractor first — it holds its own page.
-  // IMPORTANT: pass the extractor to safeDispose BEFORE nullifying the
-  // module-level variable, otherwise safeDispose receives null and the
-  // underlying page is never closed (a silent resource leak).
-  if (contentExtractor) {
-    await safeDispose(contentExtractor, "content extractor");
-    contentExtractor = null;
-    contentExtractorPromise = null;
-  }
-
   if (browserManager) {
     const mgr = browserManager;
     browserManager = null;
     initPromise = null; // allow re-init after close()
     await safeClose(mgr, "browser manager");
-  }
-}
-
-/**
- * Close a disposable and suppress the "Target closed" error that occurs when
- * a page or context has already been torn down.
- */
-async function safeDispose(
-  disposable: { dispose: () => Promise<unknown> } | null,
-  label: string,
-): Promise<void> {
-  if (!disposable) return;
-  try {
-    await disposable.dispose();
-  } catch (e) {
-    const msg = (e as Error)?.message ?? "";
-    if (!msg.includes("Target closed")) {
-      console.error(`[google-search-core] error disposing ${label}:`, e);
-    }
   }
 }
 
@@ -167,6 +132,37 @@ async function safeClose(mgr: BrowserManager, label: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Map `items` through `fn` with at most `limit` calls in flight at once.
+ * Preserves input order in the returned array.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+
+  async function worker(): Promise<void> {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, limit), items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 
@@ -174,14 +170,13 @@ async function safeClose(mgr: BrowserManager, label: string): Promise<void> {
  * Perform a Google search and return structured result listings.
  *
  * @param query   — raw query string (supports Google operators like `site:`, `filetype:`, …)
- * @param options — `maxResults` to cap results
+ * @param options — `maxResults` to cap results, `page` for pagination
  * @returns Object with `results` array and the `url` that was searched
  *
  * @throws Error if Chrome has not been initialised (call `init()` first).
- * @throws Error if `browserManager.goto()` fails — network error, DNS failure,
- *         or navigation timeout.
+ * @throws Error if navigation fails — network error, DNS failure, or timeout.
  * @throws Error if `extractSearchResults()` fails — the `#search` container
- *         does not appear within `timeoutMs`, or Google returns a CAPTCHA or
+ *         does not appear within the timeout, or Google returns a CAPTCHA or
  *         consent wall that blocks the results container.
  */
 export async function search(
@@ -191,14 +186,13 @@ export async function search(
   if (!browserManager) throw new Error("Call init() before search()");
 
   const parsed = parseFilters(query);
-  const url = buildSearchUrl(parsed);
+  const url = buildSearchUrl(parsed, options.page ?? 0);
 
-  await browserManager.goto(url);
-
-  // createBrowserManager returns a new page each time newPage() is called;
-  // we must close it after extraction to avoid leaking a page per invocation.
+  // Each search runs on its own fresh page, closed in `finally`. This keeps
+  // concurrent searches from clobbering one another's navigation.
   const page = await browserManager.newPage();
   try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
     const results = await extractSearchResults(page);
     const trimmed = results.slice(0, options.maxResults ?? 10);
     return { results: trimmed, url };
@@ -216,16 +210,13 @@ export async function search(
  * Like `search()` but also fetches each result page and extracts its content
  * as Markdown using Mozilla Readability.
  *
- * Result objects carry an additional `content` field.
- *
- * Safe to call concurrently from multiple callers: a single content-extraction
- * page is shared across all callers, and the creation of that page is guarded
- * by a promise so concurrent first callers never create duplicates.
+ * Result objects carry an additional `content` field. Each result page is
+ * fetched on its own isolated page (up to `CONTENT_CONCURRENCY` in parallel),
+ * so a single slow or broken page never blocks or breaks the others — failed
+ * extractions yield an empty `content` string.
  *
  * @throws Error if Chrome has not been initialised (call `init()` first).
  * @throws Error if the underlying search (see `search()`) fails.
- * @throws Error if the URL passed to `extract()` is not an http(s) URL.
- * @throws Error if the underlying page has been closed before extraction.
  */
 export async function searchWithContent(
   query: string,
@@ -234,51 +225,27 @@ export async function searchWithContent(
   if (!browserManager)
     throw new Error("Call init() before searchWithContent()");
 
-  // search() already closes its own page, so there is no page leak here.
+  // search() runs and closes its own page before we get here.
   const { results, url } = await search(query, options);
 
-  // --- TOCTOU-safe extractor creation -----------------------------------
-  // contentExtractorPromise is set before the async work begins, so any
-  // concurrent caller that also enters this block will await the same
-  // promise instead of creating a second page.
-  if (!contentExtractorPromise) {
-    const page = await browserManager.newPage();
-    contentExtractorPromise = createPageContentExtractorSafely(page);
-  }
+  // Capture the manager locally so a concurrent close() cannot turn the
+  // newPage factory into a null dereference mid-flight.
+  const mgr = browserManager;
+  const extractor = createPageContentExtractor(() => mgr.newPage());
 
-  // Capture in a local before the first await so that a concurrent close()
-  // that nullifies contentExtractorPromise between the assignment above and
-  // the first evaluation below cannot turn this into `await null`.
-  const extractorPromise = contentExtractorPromise;
-  const extractor = await extractorPromise;
-  contentExtractor = extractor; // capture for close()
+  const enriched = await mapWithConcurrency(
+    results,
+    CONTENT_CONCURRENCY,
+    async (r) => {
+      try {
+        return { ...r, content: await extractor.extract(r.url) };
+      } catch {
+        // Defensive: extract() returns "" for navigation/parse failures, but
+        // a bad URL (non-http) throws — degrade to empty content either way.
+        return { ...r, content: "" };
+      }
+    },
+  );
 
-  // If close() raced in and disposed the extractor before we got here,
-  // the promise would have been set to null by close() — but we captured it
-  // above, so we proceed with the extractor as-is.  Individual extract
-  // failures are handled per-result below.
-
-  try {
-    const enriched = await Promise.all(
-      results.map(async (r) => ({
-        ...r,
-        content: await extractor.extract(r.url),
-      })),
-    );
-
-    // Return the pre-computed url so the caller always gets the actual
-    // search URL, even when results is empty.
-    return { results: enriched, url };
-  } catch (err) {
-    // If enrichment fails (e.g. all pages are unreachable), return the
-    // raw results with empty content strings so the caller still gets
-    // useful data.  Per-result extraction failures are already handled
-    // inside extractor.extract() (which returns "" rather than rejecting).
-    console.error(
-      "[google-search-core] content enrichment failed, returning empty content:",
-      err,
-    );
-    const enriched = results.map((r) => ({ ...r, content: "" }));
-    return { results: enriched, url };
-  }
+  return { results: enriched, url };
 }

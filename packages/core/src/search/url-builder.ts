@@ -2,7 +2,9 @@
  * Build a fully-formed Google search URL from a `ParsedQuery`.
  *
  * Uses `google.com/search` with sensible defaults:
- *  - `num=10`  — 10 organic results per page (Google's per-page max)
+ *  - `num=10`  — requested results per page. NOTE: Google has largely deprecated
+ *                the `num` parameter (rolled back ~late 2024), so it is best-effort;
+ *                use `start=` (pagination) as the reliable way to go deeper.
  *  - `hl=en`   — interface language
  *  - `gl=us`   — geolocation
  *  - `start=N` — pagination offset (0-based page index × 10)
