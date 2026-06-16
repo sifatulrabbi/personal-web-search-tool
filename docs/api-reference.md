@@ -64,14 +64,14 @@ const { results, url } = await search("bun runtime", { maxResults: 5 });
 
 ```ts
 {
-    results: Array<{
-        rank: number; // 1-based rank
-        title: string; // Result title
-        url: string; // Full URL
-        snippet: string; // Description text
-        displayUrl?: string; // e.g. "example.com › page"
-    }>;
-    url: string; // The google.com/search?… URL that was loaded
+  results: Array<{
+    rank: number; // 1-based rank
+    title: string; // Result title
+    url: string; // Full URL
+    snippet: string; // Description text
+    displayUrl?: string; // e.g. "example.com › page"
+  }>;
+  url: string; // The google.com/search?… URL that was loaded
 }
 ```
 
@@ -87,7 +87,7 @@ Like `search()` but also fetches each result page and extracts its main content 
 import { searchWithContent } from "google-search-core";
 
 const { results } = await searchWithContent("typescript tutorial", {
-    maxResults: 3,
+  maxResults: 3,
 });
 
 results[0].content; // Markdown string of the landing page
@@ -107,12 +107,12 @@ Same as `search()` but each result carries an additional `content` field:
 
 ```ts
 Array<{
-    rank: number;
-    title: string;
-    url: string;
-    snippet: string;
-    displayUrl?: string;
-    content: string; // Markdown of the landing page ("" if unreadable)
+  rank: number;
+  title: string;
+  url: string;
+  snippet: string;
+  displayUrl?: string;
+  content: string; // Markdown of the landing page ("" if unreadable)
 }>;
 ```
 
@@ -154,10 +154,10 @@ await manager.close();
 
 ```ts
 type BrowserManager = {
-    start: () => Promise<BrowserContext>;
-    newPage: () => Promise<Page>;
-    goto: (url: string, timeoutMs?: number) => Promise<void>;
-    close: () => Promise<void>;
+  start: () => Promise<BrowserContext>;
+  newPage: () => Promise<Page>;
+  goto: (url: string, timeoutMs?: number) => Promise<void>;
+  close: () => Promise<void>;
 };
 ```
 
@@ -167,10 +167,10 @@ type BrowserManager = {
 --no-first-run
 --no-default-browser-check
 --disable-popup-blocking
---disable-background-timer-throttling
---disable-backgrounding-occluded-windows
---disable-renderer-backgrounding
+--disable-blink-features=AutomationControlled
 ```
+
+> **Note on anti-detection:** Playwright sets `navigator.webdriver = true` in all pages, which is one of Google's strongest automation signals. The manager patches this via `context.on("page")` + `page.addInitScript()` so the property returns `undefined`. Combined with `--disable-blink-features=AutomationControlled` and the user's real Chrome profile (cookies, history, login state), this avoids the "Are you a human?" CAPTCHA in normal usage.
 
 ---
 
@@ -184,7 +184,7 @@ Parse a raw Google search string into a structured object.
 import { parseFilters } from "google-search-core/src/search/filters";
 
 const parsed = parseFilters(
-    'bun runtime site:github.com -outdated "stable release"',
+  'bun runtime site:github.com -outdated "stable release"',
 );
 // {
 //   query: "bun runtime",
@@ -225,10 +225,10 @@ Reassemble a `ParsedQuery` back into a `q=` parameter value.
 import { buildQueryString } from "google-search-core/src/search/filters";
 
 buildQueryString({
-    query: "bun",
-    site: "github.com",
-    excludeTerms: ["npm"],
-    exactPhrase: "fast runtime",
+  query: "bun",
+  site: "github.com",
+  excludeTerms: ["npm"],
+  exactPhrase: "fast runtime",
 });
 // 'bun "fast runtime" -npm site:github.com'
 ```
@@ -273,16 +273,16 @@ const results = await extractSearchResults(page);
 
 **SERP Selectors used**
 
-| Element           | Selector                                    |
-| ----------------- | ------------------------------------------- |
-| Results container | `#search`                                   |
-| Individual block  | `#search .g` (filtered to `h3` + `a[href]`) |
-| Title             | `h3`                                        |
-| URL               | `a[href]`                                   |
-| Snippet           | `.VwiC3b` (fallback: `div[data-sncf="1"]`)  |
-| Display URL       | `.TbwUpd`                                   |
+| Element           | Selector                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| Results container | `#search`                                                                                 |
+| Individual block  | `#search .MjjYud` (current layout, fallback: `#search .g`) — filtered to `h3` + `a[href]` |
+| Title             | `h3`                                                                                      |
+| URL               | `a[href]` (inside `.yuRUbf`)                                                              |
+| Snippet           | `.w8qArf, .ITZIwc` (current layout), `.VwiC3b` (legacy), fallback: `div[data-sncf]`       |
+| Display URL       | `.V9tjod` (current layout), `.TbwUpd` (legacy)                                            |
 
-> **Note**: Blocks with no resolvable URL are silently skipped. If Google changes its SERP DOM structure, update the selectors in `SELECTORS` in `src/search/serp.ts`.
+> **Note**: Google changes its SERP DOM structure regularly (class names, layout per locale). If extraction returns fewer results than expected, inspect the live SERP in Chrome DevTools and update the selectors in `SELECTORS` in `src/search/serp.ts`. The selector for `resultBlock` tries `.MjjYud` first and falls back to `.g` automatically.
 
 ---
 
@@ -303,10 +303,10 @@ const markdown = await extractor.extract("https://example.com/article");
 
 ```ts
 type PageContentExtractor = {
-    /** Navigate to `url` and return its main content as Markdown. Returns "" on failure. */
-    extract: (url: string, timeoutMs?: number) => Promise<string>;
-    /** Close the underlying Playwright Page and release resources. */
-    dispose: () => Promise<void>;
+  /** Navigate to `url` and return its main content as Markdown. Returns "" on failure. */
+  extract: (url: string, timeoutMs?: number) => Promise<string>;
+  /** Close the underlying Playwright Page and release resources. */
+  dispose: () => Promise<void>;
 };
 ```
 

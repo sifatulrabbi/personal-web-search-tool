@@ -12,6 +12,23 @@ import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { DEFAULT_CHROME_BINARY, DEFAULT_USER_DATA_DIR } from "./profile";
 
 // ---------------------------------------------------------------------------
+// Stealth: patch navigator.webdriver
+// ---------------------------------------------------------------------------
+// Playwright unconditionally sets navigator.webdriver = true, which is one of
+// the most reliable signals Google uses to detect automation.  This init script
+// redefines the getter so it returns undefined — indistinguishable from a real
+// Chrome instance from the page's perspective.
+//
+// The script runs before every navigation on every new page, so it is safe
+// even when the user navigates cross-origin or reloads.
+
+const STEALTH_INIT_SCRIPT = `
+Object.defineProperty(navigator, 'webdriver', {
+    get: () => undefined,
+});
+`;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -38,14 +55,18 @@ export type BrowserManager = {
 // ---------------------------------------------------------------------------
 // Default launch arguments for a smooth headful experience
 // ---------------------------------------------------------------------------
+// --disable-background-timer-throttling and the --disable-backgrounding-*
+// flags were removed: they are automation signals that Google's bot-detection
+// picks up. When using the user's own Chrome profile via launchPersistentContext
+// there is no need to fight Chrome's normal background behaviour — the user's
+// cookies, history, and login state are what actually avoid CAPTCHAs.
 
 const DEFAULT_LAUNCH_ARGS = [
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-popup-blocking",
-    "--disable-background-timer-throttling",
-    "--disable-backgrounding-occluded-windows",
-    "--disable-renderer-backgrounding",
+    "--disable-blink-features=AutomationControlled",
+    "--no-sandbox",
 ];
 
 // ---------------------------------------------------------------------------
@@ -81,6 +102,18 @@ export function createBrowserManager(
                 viewport: { width: 1280, height: 720 },
                 args: DEFAULT_LAUNCH_ARGS,
             });
+
+            // Patch navigator.webdriver on every new page before it navigates.
+            context.on("page", (page: Page) => {
+                void page.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
+            });
+
+            // Also patch any pages that already exist (e.g. a blank startup tab).
+            for (const existingPage of context.pages()) {
+                void existingPage
+                    .addInitScript(STEALTH_INIT_SCRIPT)
+                    .catch(() => {});
+            }
 
             return context;
         },

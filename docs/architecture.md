@@ -133,6 +133,32 @@ If extraction returns empty results after a Google UI update:
 
 ---
 
+## Anti-Detection
+
+Google's bot-detection (reCAPTCHA / "Are you a human?") is triggered by
+automation fingerprints in the browser. Three measures are applied:
+
+1. **`navigator.webdriver` patch** — Playwright always sets
+   `navigator.webdriver = true`. An init script registered via
+   `context.on("page")` redefines the getter to return `undefined` on every
+   new page before any navigation occurs.
+
+2. **`--disable-blink-features=AutomationControlled`** — added to the Chrome
+   launch args so Chrome does not expose `AutomationControlled` as an enabled
+   blink feature, which is another signal Google inspects.
+
+3. **Removed automation-flagged Chrome switches** — `--disable-background-timer-throttling`,
+   `--disable-backgrounding-occluded-windows`, and `--disable-renderer-backgrounding`
+   were dropped: they are well-known automation flags that flag the browser
+   as non-human.
+
+The user's real Chrome profile (`userDataDir`) provides cookies, history, and
+login state — the strongest CAPTCHA-avoidance signal. Without a real profile
+(i.e. using a blank `--user-data-dir`), Google will still challenge the
+browser even with these patches.
+
+---
+
 ## Profile Lock Strategy
 
 Chrome uses file locking on the `userDataDir` — only one process may hold it at a time.
