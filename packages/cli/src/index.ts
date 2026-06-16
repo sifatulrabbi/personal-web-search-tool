@@ -1,8 +1,8 @@
 /**
- * CLI entry point for `web-search`.
+ * CLI entry point for `sweb-search`.
  *
  * Usage:
- *   web-search [options] <query>
+ *   sweb-search [options] <query>
  *
  * Options:
  *   --json                  Output results as JSON (pipeable)
@@ -14,9 +14,9 @@
  *   --version               Show version
  *
  * Examples:
- *   web-search "bun runtime"
- *   web-search --json "bun runtime" > results.json
- *   web-search -c --max-results 3 "typescript tutorial"
+ *   sweb-search "bun runtime"
+ *   sweb-search --json "bun runtime" > results.json
+ *   sweb-search -c --max-results 3 "typescript tutorial"
  */
 
 import { readFileSync } from "node:fs";
@@ -165,10 +165,10 @@ export function parseArgs(argv: string[]): {
 // ---------------------------------------------------------------------------
 
 function printHelp(): void {
-  console.log(`web-search — Google search from your terminal
+  console.log(`sweb-search — Google search from your terminal
 
 Usage:
-  web-search [options] <query>
+  sweb-search [options] <query>
 
 Options:
   --json                  Output results as JSON (pipeable)
@@ -180,10 +180,10 @@ Options:
   --version               Show CLI version
 
 Examples:
-  web-search "bun runtime"
-  web-search --json "bun runtime" > results.json
-  web-search -c -n 3 "typescript tutorial"
-  web-search --headless "bun release notes"`);
+  sweb-search "bun runtime"
+  sweb-search --json "bun runtime" > results.json
+  sweb-search -c -n 3 "typescript tutorial"
+  sweb-search --headless "bun release notes"`);
 }
 
 // ---------------------------------------------------------------------------
@@ -273,7 +273,7 @@ async function run(
   try {
     // Guard before any browser work — throw so `finally → close()` always fires.
     if (!query.trim()) {
-      throw new Error("No query provided. Usage: web-search <query>");
+      throw new Error("No query provided. Usage: sweb-search <query>");
     }
 
     await init(

@@ -5,7 +5,7 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "web-search": "./src/index.ts"
+    "sweb-search": "./src/index.ts"
   },
   "scripts": {
     "search": "bun run src/index.ts",

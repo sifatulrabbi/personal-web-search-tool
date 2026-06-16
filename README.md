@@ -3,7 +3,7 @@
 A Bun + TypeScript monorepo for programmatic Google search using your own Chrome profile on macOS.
 
 - **`@sifatul-web-search-tool/core`** — the library (Playwright + Chrome)
-- **`@sifatul-web-search-tool/cli`** — terminal interface (`web-search`)
+- **`@sifatul-web-search-tool/cli`** — terminal interface (`sweb-search`)
 
 ## Requirements
 

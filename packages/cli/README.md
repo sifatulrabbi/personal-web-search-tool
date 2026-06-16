@@ -3,7 +3,7 @@
 Terminal interface for `@sifatul-web-search-tool/core` — smoke-test Google search from your CLI.
 
 ```bash
-web-search [options] <query>
+sweb-search [options] <query>
 ```
 
 ---
@@ -46,10 +46,10 @@ bun run build
 
 # Symlink the binary into your PATH (one-time setup)
 bun link
-# → "web-search" is now available globally
+# → "sweb-search" is now available globally
 
 # Run from anywhere
-web-search "bun runtime"
+sweb-search "bun runtime"
 ```
 
 ---
@@ -58,7 +58,7 @@ web-search "bun runtime"
 
 ```
 Usage:
-  web-search [options] <query>
+sweb-search [options] <query>
 
 Options:
   --json                  Output results as JSON (pipeable)
