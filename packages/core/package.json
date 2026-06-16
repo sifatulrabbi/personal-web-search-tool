@@ -23,8 +23,8 @@
         "build": "bun x tsc -p src/tsconfig.build.json",
         "build:watch": "bun x tsc -p src/tsconfig.build.json --watch",
         "prepack": "bun run build && bun run typecheck",
-        "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format": "bun x prettier --write --ignore-path ../../.prettierignore .",
+        "format:check": "bun x prettier --check --ignore-path ../../.prettierignore ."
     },
     "dependencies": {
         "playwright-core": "catalog:",

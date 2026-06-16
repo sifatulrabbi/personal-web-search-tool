@@ -64,14 +64,14 @@ const { results, url } = await search("bun runtime", { maxResults: 5 });
 
 ```ts
 {
-  results: Array<{
-    rank: number; // 1-based rank
-    title: string; // Result title
-    url: string; // Full URL
-    snippet: string; // Description text
-    displayUrl?: string; // e.g. "example.com › page"
-  }>;
-  url: string; // The google.com/search?… URL that was loaded
+    results: Array<{
+        rank: number; // 1-based rank
+        title: string; // Result title
+        url: string; // Full URL
+        snippet: string; // Description text
+        displayUrl?: string; // e.g. "example.com › page"
+    }>;
+    url: string; // The google.com/search?… URL that was loaded
 }
 ```
 
@@ -87,7 +87,7 @@ Like `search()` but also fetches each result page and extracts its main content 
 import { searchWithContent } from "google-search-core";
 
 const { results } = await searchWithContent("typescript tutorial", {
-  maxResults: 3,
+    maxResults: 3,
 });
 
 results[0].content; // Markdown string of the landing page
@@ -107,12 +107,12 @@ Same as `search()` but each result carries an additional `content` field:
 
 ```ts
 Array<{
-  rank: number;
-  title: string;
-  url: string;
-  snippet: string;
-  displayUrl?: string;
-  content: string; // Markdown of the landing page ("" if unreadable)
+    rank: number;
+    title: string;
+    url: string;
+    snippet: string;
+    displayUrl?: string;
+    content: string; // Markdown of the landing page ("" if unreadable)
 }>;
 ```
 
@@ -154,10 +154,10 @@ await manager.close();
 
 ```ts
 type BrowserManager = {
-  start: () => Promise<BrowserContext>;
-  newPage: () => Promise<Page>;
-  goto: (url: string, timeoutMs?: number) => Promise<void>;
-  close: () => Promise<void>;
+    start: () => Promise<BrowserContext>;
+    newPage: () => Promise<Page>;
+    goto: (url: string, timeoutMs?: number) => Promise<void>;
+    close: () => Promise<void>;
 };
 ```
 
@@ -184,7 +184,7 @@ Parse a raw Google search string into a structured object.
 import { parseFilters } from "google-search-core/src/search/filters";
 
 const parsed = parseFilters(
-  'bun runtime site:github.com -outdated "stable release"',
+    'bun runtime site:github.com -outdated "stable release"',
 );
 // {
 //   query: "bun runtime",
@@ -225,10 +225,10 @@ Reassemble a `ParsedQuery` back into a `q=` parameter value.
 import { buildQueryString } from "google-search-core/src/search/filters";
 
 buildQueryString({
-  query: "bun",
-  site: "github.com",
-  excludeTerms: ["npm"],
-  exactPhrase: "fast runtime",
+    query: "bun",
+    site: "github.com",
+    excludeTerms: ["npm"],
+    exactPhrase: "fast runtime",
 });
 // 'bun "fast runtime" -npm site:github.com'
 ```
@@ -303,10 +303,10 @@ const markdown = await extractor.extract("https://example.com/article");
 
 ```ts
 type PageContentExtractor = {
-  /** Navigate to `url` and return its main content as Markdown. Returns "" on failure. */
-  extract: (url: string, timeoutMs?: number) => Promise<string>;
-  /** Close the underlying Playwright Page and release resources. */
-  dispose: () => Promise<void>;
+    /** Navigate to `url` and return its main content as Markdown. Returns "" on failure. */
+    extract: (url: string, timeoutMs?: number) => Promise<string>;
+    /** Close the underlying Playwright Page and release resources. */
+    dispose: () => Promise<void>;
 };
 ```
 

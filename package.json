@@ -2,6 +2,10 @@
     "name": "@sifatul-web-search-tool",
     "version": "0.0.0",
     "private": true,
+    "scripts": {
+        "format": "bun x prettier --write .",
+        "format:check": "bun x prettier --check ."
+    },
     "workspaces": {
         "packages": [
             "packages/*"

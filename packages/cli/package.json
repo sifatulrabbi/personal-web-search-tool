@@ -15,8 +15,8 @@
         "typecheck:watch": "bun x tsc --noEmit --watch",
         "build": "bun x tsc -p src/tsconfig.build.json",
         "build:watch": "bun x tsc -p src/tsconfig.build.json --watch",
-        "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format": "bun x prettier --write --ignore-path ../../.prettierignore .",
+        "format:check": "bun x prettier --check --ignore-path ../../.prettierignore ."
     },
     "dependencies": {
         "@sifatul-web-search-tool/core": "workspace:*"
