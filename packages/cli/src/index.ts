@@ -32,21 +32,6 @@ import type {
 } from "@sifatul-web-search-tool/core";
 
 // ---------------------------------------------------------------------------
-// ANSI colour helpers — only emit when stdout is a TTY (not piped)
-// ---------------------------------------------------------------------------
-
-const isTTY = process.stdout.isTTY;
-
-const C = {
-  dim: isTTY ? "\u001b[2m" : "",
-  bold: isTTY ? "\u001b[1m" : "",
-  cyan: isTTY ? "\u001b[36m" : "",
-  green: isTTY ? "\u001b[32m" : "",
-  red: isTTY ? "\u001b[31m" : "",
-  reset: isTTY ? "\u001b[0m" : "",
-};
-
-// ---------------------------------------------------------------------------
 // CLI metadata (read once at module load)
 // ---------------------------------------------------------------------------
 
@@ -212,12 +197,10 @@ function printResultTerminal(result: SearchResult): void {
   const snippet = result.snippet.replace(/\s+/g, " ").slice(0, 160);
 
   console.log();
-  console.log(
-    `${C.green}${result.rank}.${C.reset} ${C.bold}${title}${C.reset}`,
-  );
-  console.log(`   ${C.cyan}${urlDisplay}${C.reset}`);
+  console.log(`${result.rank}. ${title}`);
+  console.log(`   ${urlDisplay}`);
   if (snippet.length > 0) {
-    console.log(`   ${C.dim}${snippet}${C.reset}`);
+    console.log(`   ${snippet}`);
   }
 }
 
@@ -248,11 +231,9 @@ function printContentTerminal(results: SearchResultWithContent[]): void {
     printResultTerminal(result);
 
     if (result.content.length > 0) {
-      console.log(`\n${C.dim}${"=".repeat(60)}${C.reset}`);
-      console.log(`${C.dim}${result.content}${C.reset}`);
-      console.log(`${C.dim}${"=".repeat(60)}${C.reset}`);
+      console.log(`\n---\n${result.content}\n---`);
     } else {
-      console.log(`\n${C.dim}(no extractable content)${C.reset}`);
+      console.log("\n(no extractable content)");
     }
   }
   console.log();
@@ -309,10 +290,10 @@ async function run(
       if (options.json) {
         printContentJson(results);
       } else {
-        console.log(
-          `${C.green}✓${C.reset} Found ${results.length} result${
+        console.error(
+          `✓ Found ${results.length} result${
             results.length === 1 ? "" : "s"
-          } for "${query}"\n`,
+          } for "${query}"`,
         );
         printContentTerminal(results);
       }
@@ -326,21 +307,21 @@ async function run(
     if (options.json) {
       printJson(results);
     } else {
-      console.log(
-        `${C.green}✓${C.reset} Found ${results.length} result${
+      console.error(
+        `✓ Found ${results.length} result${
           results.length === 1 ? "" : "s"
-        } for "${query}"\n`,
+        } for "${query}"`,
       );
       printTerminal(results);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`${C.red}Error:${C.reset} ${message}`);
+    console.error(`Error: ${message}`);
     process.exitCode = 1;
   } finally {
     await close().catch((err) => {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`${C.red}Cleanup error:${C.reset} ${msg}`);
+      console.error(`Cleanup error: ${msg}`);
     });
   }
 }

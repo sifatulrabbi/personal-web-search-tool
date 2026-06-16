@@ -24,13 +24,17 @@ web-search [options] <query>
 Run the CLI directly from source using Bun — no build step required:
 
 ```bash
-# From the monorepo root
-bun run --filter=@sifatul-web-search-tool/cli search "bun runtime"
-
-# From the cli package directory
+# From the cli package directory (recommended for clean piped output)
 cd packages/cli
 bun run src/index.ts "bun runtime"
+
+# From the monorepo root
+bun run --filter=@sifatul-web-search-tool/cli search "bun runtime"
 ```
+
+> **Note on clean output:** `bun run src/index.ts` (no `--filter`) produces clean stdout for piping.
+> `bun run --filter=@sifatul-web-search-tool/cli search` prepends `@sifatul-web-search-tool/cli search:`
+> to every stdout line — useful for terminal, but avoid `--filter` when redirecting to files.
 
 ### Build and install locally
 
@@ -72,19 +76,19 @@ Options:
 
 ```bash
 # Basic search (terminal output)
-bun run --filter=@sifatul-web-search-tool/cli search "bun runtime"
+bun run src/index.ts "bun runtime"
 
-# Pipe JSON to a file
-bun run --filter=@sifatul-web-search-tool/cli search --json "bun runtime" > results.json
+# Pipe JSON to a file (run from packages/cli/ for clean output)
+bun run src/index.ts --json "bun runtime" > results.json
 
 # Fetch full page content as Markdown
-bun run --filter=@sifatul-web-search-tool/cli search -c -n 3 "typescript tutorial"
+bun run src/index.ts -c -n 3 "typescript tutorial"
 
 # Headless mode (no visible Chrome window)
-bun run --filter=@sifatul-web-search-tool/cli search --headless "bun release notes"
+bun run src/index.ts --headless "bun release notes"
 
 # Use a custom Chrome profile
-bun run --filter=@sifatul-web-search-tool/cli search --profile ~/chrome-profiles/automation "bun runtime"
+bun run src/index.ts --profile ~/chrome-profiles/automation "bun runtime"
 ```
 
 ---
